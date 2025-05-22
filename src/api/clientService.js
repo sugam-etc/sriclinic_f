@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API } from "../config";
 
-const API_BASE = "http://localhost:5000/api/clients";
+const API_BASE = `${API}clients`;
 
 export const getClients = () => axios.get(API_BASE);
 export const createClient = (data) => axios.post(API_BASE, data);

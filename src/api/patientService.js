@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API } from "../config";
 
-const API_BASE = "http://localhost:5000/api/patients";
+const API_BASE = `${API}patients`;
 
 export const getPatients = () => axios.get(API_BASE);
 export const createPatient = (data) => axios.post(API_BASE, data);

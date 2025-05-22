@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000/api/staffs";
+import { API } from "../config";
+
+const API_BASE = `${API}staffs`;
 
 export const getStaffs = () => axios.get(API_BASE);
 export const createStaff = (data) => axios.post(API_BASE, data);

@@ -1,7 +1,8 @@
 // services/inventoryService.js
 import axios from "axios";
+import { API } from "../config";
 
-const API_URL = "http://localhost:5000/api/inventory"; // adjust to your backend URL
+const API_URL = `${API}inventory`;
 
 export const getAllInventory = async () => {
   const response = await axios.get(API_URL);

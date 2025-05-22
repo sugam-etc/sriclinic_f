@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_BASE = "http://localhost:5000/api/suppliers";
+import { API } from "../config";
+
+const API_BASE = `${API}suppliers`;
 
 export const getSuppliers = () => axios.get(API_BASE);
 export const createSupplier = (data) => axios.post(API_BASE, data);
