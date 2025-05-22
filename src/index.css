@@ -1,0 +1,27 @@
+@import "tailwindcss";
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-record,
+  .printable-record * {
+    visibility: visible;
+  }
+  .printable-record {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+body {
+  -webkit-print-color-adjust: exact;
+  margin: 0;
+  padding: 0;
+}
+.no-print {
+  display: none !important;
+}
+.print-only {
+  display: block !important;
+}
