@@ -25,6 +25,7 @@ import { getClients } from "../api/clientService.js";
 import { getPatients } from "../api/patientService.js";
 import { getAllInventory } from "../api/inventoryService.js";
 import { getSales } from "../api/saleService.js";
+import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const [clientsData, setClientsData] = useState([]);
@@ -342,10 +343,10 @@ const Dashboard = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {stats.map((stat, index) => (
-          <div
+          <Link
             key={index}
             className="bg-white p-4 md:p-6 rounded-lg shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigateTo(stat.link)}
+            to={stat.link}
           >
             <div className="flex justify-between items-start">
               <div>
@@ -360,7 +361,7 @@ const Dashboard = () => {
                 {stat.icon}
               </div>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -370,12 +371,12 @@ const Dashboard = () => {
           <h2 className="text-base md:text-lg font-semibold text-gray-800">
             Upcoming Appointments
           </h2>
-          <button
-            onClick={() => navigateTo("/appointments")}
+          <Link
+            to="/appointments"
             className="text-xs md:text-sm text-indigo-600 hover:text-indigo-800 font-medium"
           >
             View All
-          </button>
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -419,18 +420,18 @@ const Dashboard = () => {
                       </span>
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-right text-xs md:text-sm font-medium">
-                      <button
-                        onClick={() => navigateTo(`/appointments`)}
+                      <Link
+                        to="/appointments"
                         className="text-indigo-600 hover:text-indigo-900 mr-2 md:mr-3"
                       >
                         View
-                      </button>
-                      <button
+                      </Link>
+                      <Link
                         className="text-green-600 hover:text-green-900"
-                        onClick={() => navigateTo("/appointments")}
+                        to="/appointments"
                       >
                         Check In
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))
