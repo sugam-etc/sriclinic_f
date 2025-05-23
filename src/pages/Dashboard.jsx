@@ -253,7 +253,7 @@ const Dashboard = () => {
     <div className="p-4 md:p-6 relative">
       {/* Mobile Header */}
       <div className="md:hidden flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
+        <h1 className="text-xl font-bold text-gray-800">DASHBOARD</h1>
         <div className="flex items-center space-x-4">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
@@ -267,13 +267,13 @@ const Dashboard = () => {
               </span>
             )}
           </button>
-          <button
+          {/* <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="p-2 rounded-full bg-white shadow-md text-gray-600 hover:text-indigo-600 focus:outline-none"
             aria-label="Menu"
           >
             <FaBars className="text-xl" />
-          </button>
+          </button> */}
         </div>
       </div>
 

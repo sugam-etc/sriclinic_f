@@ -1,53 +1,46 @@
 import React, { useState } from "react";
-import { getStaffs } from "../api/staffService"; // Adjust path as needed
-import { useNavigate } from "react-router-dom"; // Assuming you use react-router-dom for navigation
+import { loginUser } from "../api/loginService"; // import your new login service
+import { useNavigate } from "react-router-dom";
 import logo from "../assets/clinic.jpg";
+
 const LoginPage = ({ setLoggedInUser }) => {
-  const [username, setUsername] = useState("");
+  const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // New loading state for the button
-  const navigate = useNavigate(); // Hook for navigation
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
-    e.preventDefault(); // Prevent default form submission
-
-    setError(""); // Clear previous errors
-    setLoading(true); // Start loading
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
-      const response = await getStaffs(); // Fetch all staff data
-      const staffs = response.data; // Assuming response.data is an array of staff objects
+      const user = await loginUser(userId, password);
 
-      // Find the user by username and password
-      // Using staff.userId for username comparison as per your provided code
-      const foundUser = staffs.find(
-        (staff) => staff.userId === username && staff.password === password
-      );
+      if (user) {
+        console.log("Login successful:", user);
+        setLoggedInUser(user);
 
-      if (foundUser) {
-        // Authentication successful
-        console.log("Login successful:", foundUser);
-        setLoggedInUser(foundUser); // Set the logged-in user in your app's state (this will also save to localStorage in App.js)
-
-        // Navigate based on role
-        if (foundUser.role === "admin") {
-          navigate("/dashboard"); // Navigate to admin dashboard
-        } else if (foundUser.role === "staff") {
-          navigate("/dashboard"); // Navigate to staff dashboard
+        if (user.role === "admin") {
+          navigate("/dashboard");
+        } else if (user.role === "staff") {
+          navigate("/dashboard");
         } else {
-          // Fallback or handle other roles
           navigate("/dashboard");
         }
       } else {
-        // Authentication failed
         setError("Invalid username or password.");
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError("An error occurred during login. Please try again later.");
+      if (err.response && err.response.status === 401) {
+        setError("Invalid username or password.");
+      } else {
+        setError("An error occurred during login. Please try again later.");
+      }
     } finally {
-      setLoading(false); // Stop loading regardless of success or failure
+      setLoading(false);
     }
   };
 
@@ -55,7 +48,6 @@ const LoginPage = ({ setLoggedInUser }) => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
       <div className="bg-white p-10 rounded-xl shadow-2xl w-full max-w-md transform transition-all duration-300 hover:scale-105">
         <div className="flex flex-col items-center mb-8">
-          {/* Logo */}
           <img
             src={logo}
             alt="Shri Clinic Veterinary Logo"
@@ -79,8 +71,8 @@ const LoginPage = ({ setLoggedInUser }) => {
               type="text"
               id="username"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-3 focus:ring-indigo-400 transition duration-200 text-lg"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
               required
               placeholder="Enter your username"
             />
@@ -110,7 +102,7 @@ const LoginPage = ({ setLoggedInUser }) => {
           <button
             type="submit"
             className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-3 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-100 transition duration-300 transform active:scale-95 text-lg font-semibold flex items-center justify-center"
-            disabled={loading} // Disable button while loading
+            disabled={loading}
           >
             {loading ? (
               <svg

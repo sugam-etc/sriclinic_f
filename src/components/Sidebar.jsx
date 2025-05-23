@@ -123,11 +123,11 @@ const Sidebar = ({ loggedInUser, onLogout }) => {
               <p className="text-sm font-medium text-gray-700">
                 {/* This line displays the logged-in user's name or username */}
                 {loggedInUser
-                  ? loggedInUser.fullName || loggedInUser.username
+                  ? loggedInUser.staff.name || loggedInUser.staff.username
                   : "Guest"}
               </p>
               <p className="text-xs font-medium text-gray-500">
-                {loggedInUser ? loggedInUser.role : "Role"}
+                {loggedInUser ? loggedInUser.staff.role : "Role"}
               </p>
             </div>
           </div>
