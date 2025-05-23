@@ -62,7 +62,7 @@ const LoginPage = ({ setLoggedInUser }) => {
             className="h-24 w-24 object-contain mb-4 rounded-full border-4 border-indigo-200 shadow-md"
           />
           <h2 className="text-4xl font-bold text-gray-800 text-center">
-            Shri Clinic Veterinary
+            Sri Clinic Veterinary
           </h2>
           <p className="text-xl text-gray-600 mt-2">Administrator Login</p>
         </div>
