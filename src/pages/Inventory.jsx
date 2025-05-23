@@ -2,7 +2,6 @@ import InventoryForm from "../components/InventoryForm";
 import { useEffect, useState } from "react";
 import {
   getAllInventory,
-  addInventoryItem,
   updateInventoryItem,
   deleteInventoryItem,
 } from "../api/inventoryService.js"; // Import services
@@ -125,7 +124,7 @@ const InventoryPage = () => {
                 onClick={() => toggleForm()} // Call without arguments to exit edit mode
                 className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
               >
-                <FaChevronLeft className="text-gray-600 text-lg" />
+                <FaChevronLeft className="text-gray-600 text-md" />
               </button>
             )}
             <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
@@ -140,7 +139,7 @@ const InventoryPage = () => {
           {!showForm && (
             <button
               onClick={() => toggleForm()} // Call without arguments to add new item
-              className="flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition text-lg"
+              className="flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition text-md"
             >
               <FaPlus className="text-xl" />
               <span>Add Item</span>
@@ -156,7 +155,7 @@ const InventoryPage = () => {
             <input
               type="text"
               placeholder="Search by item name, category or manufacturer..."
-              className="block w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+              className="block w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-md"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -270,7 +269,7 @@ const InventoryPage = () => {
                       scope="col"
                       className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
                     >
-                      Profit
+                      Unit
                     </th>
                     <th
                       scope="col"
@@ -289,7 +288,7 @@ const InventoryPage = () => {
                             <FaBox className="h-6 w-6 text-indigo-600" />
                           </div>
                           <div className="ml-4">
-                            <div className="text-xl font-medium text-gray-900">
+                            <div className="text-md font-medium text-gray-900">
                               {item.name}
                             </div>
                             <div className="text-lg text-gray-500">
@@ -299,14 +298,14 @@ const InventoryPage = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-3 py-1 inline-flex text-lg leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                        <span className="px-3 py-1 inline-flex text-md leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                           {item.type}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-xl text-gray-900">
-                          {item.quantity} {item.unit}
-                          {item.quantity <= item.lowStockThreshold && (
+                        <div className="text-md text-gray-900">
+                          {item.quantity}
+                          {item.quantity <= item.threshold && (
                             <span className="ml-2 text-sm text-red-600">
                               {item.quantity === 0
                                 ? "(Out of stock)"
@@ -334,15 +333,15 @@ const InventoryPage = () => {
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-md text-gray-900">
                         NPR {item.costPrice.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-md text-gray-900">
                         NPR {item.sellingPrice.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-md text-gray-900">
                         <div className="flex items-center">
-                          NPR {(item.sellingPrice - item.costPrice).toFixed(2)}
+                          {/* NPR {(item.sellingPrice - item.costPrice).toFixed(2)}
                           <span className="ml-2 text-sm text-green-600">
                             (
                             {(
@@ -351,10 +350,11 @@ const InventoryPage = () => {
                               100
                             ).toFixed(1)}
                             %)
-                          </span>
+                          </span> */}
+                          {item.unitName}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-lg font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-md font-medium">
                         <div className="flex justify-end gap-3">
                           <button
                             onClick={() => toggleForm(item)} // Pass the item to be edited

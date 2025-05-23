@@ -96,7 +96,6 @@ const PatientPage = () => {
                 "Sex",
                 "Owner",
                 "Last Appointment",
-                "Next Appointment",
               ].map((heading) => (
                 <th
                   key={heading}
@@ -141,9 +140,9 @@ const PatientPage = () => {
                   <td className="px-6 py-4">
                     {formatAppointmentDate(p.lastAppointment)}
                   </td>
-                  <td className="px-6 py-4">
+                  {/* <td className="px-6 py-4">
                     {formatAppointmentDate(p.nextAppointment)}
-                  </td>
+                  </td> */}
                 </tr>
               ))
             )}

@@ -14,7 +14,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    category: "Medication",
+    type: "Medicine",
     manufacturer: "",
     supplier: "",
     batchNumber: "",
@@ -40,7 +40,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
       setFormData({
         name: editingItem.name || "",
         description: editingItem.description || "",
-        category: editingItem.category || "Medication",
+        type: editingItem.type || "Medicine",
         manufacturer: editingItem.manufacturer || "",
         supplier: editingItem.supplier || "",
         batchNumber: editingItem.batchNumber || "",

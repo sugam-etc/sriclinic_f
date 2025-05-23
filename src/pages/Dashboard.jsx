@@ -227,10 +227,6 @@ const Dashboard = () => {
     },
   ];
 
-  const navigateTo = (path) => {
-    window.location.href = path;
-  };
-
   if (isLoading) {
     return (
       <div className="p-6 text-center text-gray-600">
