@@ -11,7 +11,7 @@ import {
   FaTimes,
 } from "react-icons/fa";
 import { useState } from "react";
-
+import logo from "../assets/clinic.jpg";
 const Navbar = ({ toggleSidebar }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -49,9 +49,9 @@ const Navbar = ({ toggleSidebar }) => {
           {/* Logo */}
           <div className="flex items-center">
             <div className="flex-shrink-0 flex items-center">
-              <FaPaw className="h-8 w-8 text-indigo-600" />
+              <img className="h-8 w-8 text-indigo-600" src={logo} />
               <span className="ml-2 text-xl font-bold text-gray-800">
-                VetCare
+                Sri Vet Clinic
               </span>
             </div>
           </div>
