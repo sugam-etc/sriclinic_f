@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"; // Removed useRef
+import { useState, useEffect, useRef } from "react";
 import React from "react";
 import SalesForm from "../components/SalesForm";
 import {
@@ -19,7 +19,7 @@ import {
   FaTrash,
   FaFileInvoiceDollar,
   FaPrint,
-} from "react-icons/fa"; // Removed FaPrint
+} from "react-icons/fa";
 import { format, isSameDay, parseISO } from "date-fns";
 import logo from "../assets/clinic.jpg";
 
@@ -32,7 +32,6 @@ const SalesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recordToPrint, setRecordToPrint] = useState(null);
-  // Removed nextInvoiceNumber state
 
   const salesRef = useRef();
 
@@ -54,8 +53,6 @@ const SalesPage = () => {
 
       setSales(sortedSales);
       setInventory(inventoryResponse);
-
-      // Removed logic for calculating nextInvoiceNumber
 
       setIsLoading(false);
     } catch (err) {
@@ -82,7 +79,6 @@ const SalesPage = () => {
     }
   };
 
-  // Removed printRecord function
   // Function to handle printing the invoice using window.print()
   const printRecord = (record) => {
     // Set the record to print, which will conditionally render the invoice template
@@ -155,23 +151,16 @@ const SalesPage = () => {
       )
   );
 
-  // Group sales by date for display
-  const groupedSales = filteredSales.reduce((acc, sale) => {
-    // Ensure date is parsed correctly to avoid issues with different date string formats
-    const saleDate = format(parseISO(sale.date), "yyyy-MM-dd");
-    if (!acc[saleDate]) {
-      acc[saleDate] = [];
-    }
-    acc[saleDate].push(sale);
-    return acc;
-  }, {});
-
-  // Sort dates in descending order (latest date first)
-  const sortedDates = Object.keys(groupedSales).sort(
-    (a, b) => new Date(b) - new Date(a)
+  // Separate today's sales from previous sales
+  const today = new Date();
+  const todaySalesList = filteredSales.filter((sale) =>
+    isSameDay(parseISO(sale.date), today)
+  );
+  const previousSalesList = filteredSales.filter(
+    (sale) => !isSameDay(parseISO(sale.date), today)
   );
 
-  // Calculate sales metrics
+  // Calculate sales metrics (these remain the same)
   const totalSales = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
   const todaySales = sales
     .filter(
@@ -187,6 +176,93 @@ const SalesPage = () => {
       <div className="p-4 text-center text-gray-600">Loading sales data...</div>
     );
   }
+
+  // Helper function to render the sales table for a given list of sales
+  const renderSalesTable = (salesToRender) => (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Date
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Client
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Items
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Total
+              </th>
+              <th
+                scope="col"
+                className="px-6 py-4 text-right text-lg font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {salesToRender.map((sale) => (
+              <tr key={sale._id} className="hover:bg-gray-50 transition">
+                <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                  {format(new Date(sale.date), "MMM dd,yyyy")}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                  {sale.clientName}
+                </td>
+                <td className="px-6 py-4 text-lg text-gray-900">
+                  {sale.items.map((item) => item.name).join(", ")}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-lg font-bold text-gray-900">
+                  NPR {sale.totalAmount.toFixed(2)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-lg font-medium">
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => handleView(sale)}
+                      className="text-indigo-600 hover:text-indigo-900"
+                      title="View Details"
+                    >
+                      <FaFileInvoiceDollar className="text-xl" />
+                    </button>
+                    <button
+                      onClick={() => printRecord(sale)}
+                      className="text-blue-600 hover:text-blue-900"
+                      title="Print Invoice"
+                    >
+                      <FaPrint className="text-xl" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(sale._id)}
+                      className="text-red-600 hover:text-red-900"
+                      title="Delete Sale"
+                    >
+                      <FaTrash className="text-xl" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -254,8 +330,6 @@ const SalesPage = () => {
             onCancel={toggleForm}
             selectedSale={selectedSale}
             setInventory={setInventory} // Pass setInventory for local form updates
-            // Removed nextInvoiceNumber prop
-            // Removed handlePrint prop
           />
         </div>
       ) : (
@@ -306,108 +380,32 @@ const SalesPage = () => {
             </div>
           ) : (
             <div className="space-y-8">
-              {sortedDates.map((date, dateIndex) => (
-                <div key={date} className={dateIndex > 0 ? "mt-8" : ""}>
-                  {" "}
-                  {/* Add margin for separation */}
+              {/* Today's Sales Section */}
+              {todaySalesList.length > 0 && (
+                <div>
                   <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                    {format(parseISO(date), "EEEE, MMMM dd,yyyy")}
+                    Today's Sales ({format(today, "EEEE, MMMM dd,yyyy")})
                   </h2>
-                  <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th
-                              scope="col"
-                              className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              Date
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              Client
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              Items
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              Total
-                            </th>
-                            <th
-                              scope="col"
-                              className="px-6 py-4 text-right text-lg font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {groupedSales[date].map((sale) => (
-                            <tr
-                              key={sale._id}
-                              className="hover:bg-gray-50 transition"
-                            >
-                              <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
-                                {format(new Date(sale.date), "MMM dd,yyyy")}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
-                                {sale.clientName}
-                              </td>
-                              <td className="px-6 py-4 text-lg text-gray-900">
-                                {sale.items.map((item) => item.name).join(", ")}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-lg font-bold text-gray-900">
-                                NPR {sale.totalAmount.toFixed(2)}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-lg font-medium">
-                                <div className="flex justify-end gap-3">
-                                  <button
-                                    onClick={() => handleView(sale)}
-                                    className="text-indigo-600 hover:text-indigo-900"
-                                    title="View Details"
-                                  >
-                                    <FaFileInvoiceDollar className="text-xl" />
-                                  </button>
-                                  {/* Removed Print button */}
-                                  <button
-                                    onClick={() => printRecord(sale)} // Call printRecord directly
-                                    className="text-blue-600 hover:text-blue-900"
-                                    title="Print Invoice"
-                                  >
-                                    <FaPrint className="text-xl" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(sale._id)}
-                                    className="text-red-600 hover:text-red-900"
-                                    title="Delete Sale"
-                                  >
-                                    <FaTrash className="text-xl" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                  {renderSalesTable(todaySalesList)}
                 </div>
-              ))}
+              )}
+
+              {/* Previous Sales Section */}
+              {previousSalesList.length > 0 && (
+                <div className={todaySalesList.length > 0 ? "mt-8" : ""}>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                    Previous Sales
+                  </h2>
+                  {/* Render all previous sales in a single table */}
+                  {renderSalesTable(previousSalesList)}
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Removed Invoice Print Template (conditionally rendered for printing) */}
+      {/* Invoice Print Template (conditionally rendered for printing) */}
       {recordToPrint && (
         <div className="print-invoice-wrapper">
           <style>
@@ -427,8 +425,8 @@ const SalesPage = () => {
             max-height: 20px !important;
             margin: 0;
             padding: 0;
-              page-break-inside: avoid;
-  break-inside: avoid;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           @page {
             size: 80mm auto;
@@ -461,7 +459,7 @@ const SalesPage = () => {
                   VetCare Clinic
                 </h1>
                 <p className="text-gray-600 text-xs">123 Veterinary Street</p>
-                <p className="text-gray-600 text-xs">Animal City, AC 12345</p>
+                <p className="text-600 text-xs">Animal City, AC 12345</p>
                 <p className="text-gray-600 text-xs">Phone: (123) 456-7890</p>
               </div>
             </div>

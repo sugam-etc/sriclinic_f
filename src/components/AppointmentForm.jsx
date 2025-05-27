@@ -6,6 +6,7 @@ const AppointmentForm = ({ onSuccess, onCancel }) => {
     clientName: "",
     petName: "",
     petType: "",
+    petAge: "",
     date: "",
     time: "",
     reason: "",
@@ -40,6 +41,7 @@ const AppointmentForm = ({ onSuccess, onCancel }) => {
         clientName: form.clientName.trim(),
         petName: form.petName.trim(),
         petType: form.petType.trim(),
+        petAge: form.petAge.trim(),
         date: form.date,
         time: form.time,
         reason: form.reason.trim(),
@@ -55,6 +57,7 @@ const AppointmentForm = ({ onSuccess, onCancel }) => {
         !appointmentData.petName ||
         !appointmentData.date ||
         !appointmentData.time ||
+        !appointmentData.petAge ||
         !appointmentData.reason ||
         !appointmentData.contactNumber ||
         !appointmentData.vetName
@@ -70,6 +73,7 @@ const AppointmentForm = ({ onSuccess, onCancel }) => {
         clientName: "",
         petName: "",
         petType: "",
+        petAge: "",
         date: "",
         time: "",
         reason: "",
@@ -165,6 +169,21 @@ const AppointmentForm = ({ onSuccess, onCancel }) => {
             type="text"
             name="petType"
             value={form.petType}
+            onChange={handleChange}
+            required
+            placeholder="Dog, Cat, etc."
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-indigo-500"
+          />
+        </div>
+        {/* Pet Age */}
+        <div>
+          <label className="block mb-1 font-medium text-gray-700">
+            Pet Age <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="petAge"
+            value={form.petAge}
             onChange={handleChange}
             required
             placeholder="Dog, Cat, etc."

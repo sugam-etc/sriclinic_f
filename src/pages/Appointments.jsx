@@ -17,11 +17,10 @@ import {
   FaPhoneAlt,
   FaStickyNote,
   FaUserMd,
-  FaBell,
-  FaExclamationTriangle,
-  FaSearch,
   FaClock,
   FaCheck,
+  FaSearch,
+  FaGavel,
 } from "react-icons/fa";
 
 const Appointments = () => {
@@ -31,12 +30,24 @@ const Appointments = () => {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  // Callback function when a new appointment is created
   const handleAppointmentCreated = (newAppointment) => {
-    // Update your state or refetch appointments
     console.log("New appointment created:", newAppointment);
+    // After creation, re-fetch appointments to ensure the list is up-to-date
+    // or optimistically add the new appointment if the backend returns it
+    setLoading(true);
+    getAppointments()
+      .then((res) => {
+        setAppointments(res.data);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch appointments after creation", err);
+      })
+      .finally(() => setLoading(false));
     setShowForm(false);
   };
 
+  // Fetch appointments on component mount
   useEffect(() => {
     setLoading(true);
     getAppointments()
@@ -49,8 +60,10 @@ const Appointments = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  // Toggle visibility of the appointment form
   const toggleForm = () => setShowForm((prev) => !prev);
 
+  // Handle marking an appointment as complete
   const handleComplete = async (id) => {
     try {
       const apptToUpdate = appointments.find((a) => a._id === id);
@@ -65,6 +78,7 @@ const Appointments = () => {
     }
   };
 
+  // Handle cancelling (deleting) an appointment
   const handleCancel = async (id) => {
     try {
       await deleteAppointment(id);
@@ -74,11 +88,13 @@ const Appointments = () => {
     }
   };
 
-  // Combine date and time for proper sorting
+  // Helper function to create a Date object from date and time strings
   const getAppointmentDateTime = (appt) => {
+    // Assuming appt.date is 'YYYY-MM-DD' and appt.time is 'HH:MM'
     return new Date(`${appt.date}T${appt.time}`);
   };
 
+  // Filter appointments based on search term
   const filteredAppointments = appointments
     .filter(
       (appt) =>
@@ -87,19 +103,23 @@ const Appointments = () => {
     )
     .map((appt) => ({
       ...appt,
-      dateTime: getAppointmentDateTime(appt),
+      dateTime: getAppointmentDateTime(appt), // Add a dateTime object for sorting
     }));
 
-  // Sort pending appointments from nearest to farthest
-  const pendingAppointments = filteredAppointments
-    .filter((a) => !a.completed)
-    .sort((a, b) => a.dateTime - b.dateTime);
+  // Sort all filtered appointments chronologically by date and then by time
+  const sortedAppointments = [...filteredAppointments].sort(
+    (a, b) => a.dateTime.getTime() - b.dateTime.getTime() // Compare timestamps for accurate sorting
+  );
 
-  // Sort completed appointments from most recent to oldest
-  const completedAppointments = filteredAppointments
+  // Filter and sort pending appointments (from nearest to farthest)
+  const pendingAppointments = sortedAppointments.filter((a) => !a.completed);
+
+  // Filter and sort completed appointments (from most recent to oldest)
+  const completedAppointments = [...sortedAppointments] // Create a copy to avoid modifying sortedAppointments
     .filter((a) => a.completed)
-    .sort((a, b) => b.dateTime - a.dateTime);
+    .reverse(); // Reverse to get most recent first
 
+  // Tailwind CSS classes for priority badges
   const priorityBadgeClasses = {
     Urgent: "bg-red-100 text-red-800",
     High: "bg-orange-100 text-orange-800",
@@ -107,21 +127,45 @@ const Appointments = () => {
     Low: "bg-gray-100 text-gray-800",
   };
 
-  // Format date to be more readable
+  // Format date to "Today", "Tomorrow", or "Weekday, Month Day"
   const formatDate = (dateString) => {
-    const options = { weekday: "short", month: "short", day: "numeric" };
-    return new Date(dateString).toLocaleDateString(undefined, options);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const date = new Date(dateString);
+    const options = { weekday: "long", month: "long", day: "numeric" };
+
+    // Check if date is today
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    }
+    // Check if date is tomorrow
+    if (date.toDateString() === tomorrow.toDateString()) {
+      return "Tomorrow";
+    }
+
+    return date.toLocaleDateString(undefined, options);
   };
 
-  // Group appointments by date for better organization
-  const groupAppointmentsByDate = (appointments) => {
+  // Format time to AM/PM format (e.g., 9:00 AM)
+  const formatTime = (timeString) => {
+    const [hours, minutes] = timeString.split(":");
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 || 12; // Convert 24-hour to 12-hour format
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  // Group appointments by their date string (YYYY-MM-DD)
+  const groupAppointmentsByDate = (appointmentsToGroup) => {
     const grouped = {};
-    appointments.forEach((appt) => {
-      const dateStr = appt.date;
-      if (!grouped[dateStr]) {
-        grouped[dateStr] = [];
+    appointmentsToGroup.forEach((appt) => {
+      const dateKey = appt.date; // Use the YYYY-MM-DD date string as the key
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = [];
       }
-      grouped[dateStr].push(appt);
+      grouped[dateKey].push(appt);
     });
     return grouped;
   };
@@ -130,6 +174,42 @@ const Appointments = () => {
     groupAppointmentsByDate(pendingAppointments);
   const groupedCompletedAppointments = groupAppointmentsByDate(
     completedAppointments
+  );
+
+  // Function to get relative date label (Today, Tomorrow, or formatted date)
+  const getRelativeDateLabel = (dateString) => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const date = new Date(dateString);
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return "Tomorrow";
+    } else {
+      return formatDate(dateString);
+    }
+  };
+
+  // Get and sort the date keys for rendering
+  const getSortedDateKeys = (groupedAppointments, isCompletedTab) => {
+    const dates = Object.keys(groupedAppointments);
+    // Sort date strings chronologically for pending, reverse for completed
+    if (isCompletedTab) {
+      return dates.sort().reverse();
+    }
+    return dates.sort();
+  };
+
+  const currentGroupedAppointments =
+    activeTab === "pending"
+      ? groupedPendingAppointments
+      : groupedCompletedAppointments;
+  const sortedDateKeys = getSortedDateKeys(
+    currentGroupedAppointments,
+    activeTab === "completed"
   );
 
   return (
@@ -218,116 +298,124 @@ const Appointments = () => {
 
           {/* Appointment Cards */}
           <div className="space-y-8">
-            {Object.entries(
-              activeTab === "pending"
-                ? groupedPendingAppointments
-                : groupedCompletedAppointments
-            ).map(([date, dateAppointments]) => (
-              <div key={date} className="space-y-4">
-                <h2 className="text-xl font-semibold text-gray-700 sticky top-0 bg-white py-2 z-10">
-                  {formatDate(date)}
-                </h2>
-                <div className="grid grid-cols-1 gap-4">
-                  {dateAppointments.map((appt) => (
-                    <div
-                      key={appt._id}
-                      className={`bg-white rounded-lg shadow-sm overflow-hidden border-l-4 ${
-                        appt.completed
-                          ? "border-green-500"
-                          : appt.priority === "Urgent"
-                          ? "border-red-500"
-                          : appt.priority === "High"
-                          ? "border-orange-500"
-                          : "border-blue-500"
-                      }`}
-                    >
-                      <div className="p-4 sm:p-6">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                          {/* Main Info */}
-                          <div className="flex-1 space-y-3">
-                            <div className="flex flex-wrap items-center gap-3">
-                              <h3 className="text-xl font-bold text-gray-800">
-                                {appt.petName}
-                                <span className="text-gray-500 font-normal ml-2">
-                                  ({appt.petType})
-                                </span>
-                              </h3>
-                              {!appt.completed && appt.priority && (
-                                <span
-                                  className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                    priorityBadgeClasses[appt.priority]
-                                  }`}
-                                >
-                                  {appt.priority}
-                                </span>
+            {sortedDateKeys.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                No appointments found for this tab.
+              </div>
+            )}
+            {sortedDateKeys.map((date) => {
+              const dateAppointments = currentGroupedAppointments[date];
+              return (
+                <div key={date} className="space-y-4">
+                  <h2 className="text-xl font-semibold text-gray-700 sticky top-0 bg-white py-2 z-10">
+                    {getRelativeDateLabel(date)}
+                  </h2>
+                  <div className="grid grid-cols-1 gap-4">
+                    {dateAppointments.map((appt) => (
+                      <div
+                        key={appt._id}
+                        className={`bg-white rounded-lg shadow-sm overflow-hidden border-l-4 ${
+                          appt.completed
+                            ? "border-green-500"
+                            : appt.priority === "Urgent"
+                            ? "border-red-500"
+                            : appt.priority === "High"
+                            ? "border-orange-500"
+                            : "border-blue-500"
+                        }`}
+                      >
+                        <div className="p-4 sm:p-6">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                            {/* Main Info */}
+                            <div className="flex-1 space-y-3">
+                              <div className="flex flex-wrap items-center gap-3">
+                                <h3 className="text-xl font-bold text-gray-800">
+                                  {appt.petName}
+                                  <span className="text-gray-500 font-normal ml-2">
+                                    ({appt.petType}
+                                    {appt.petAge && `, ${appt.petAge}`}){" "}
+                                    {/* Added petAge here */}
+                                  </span>
+                                </h3>
+                                {!appt.completed && appt.priority && (
+                                  <span
+                                    className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                      priorityBadgeClasses[appt.priority]
+                                    }`}
+                                  >
+                                    {appt.priority}
+                                  </span>
+                                )}
+                                <div className="flex items-center gap-1 text-gray-600">
+                                  <FaCalendarAlt className="text-gray-400" />
+                                  <span>{formatTime(appt.time)}</span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <div className="flex items-center gap-2 text-gray-600">
+                                  <FaUser className="text-gray-400" />
+                                  <span>{appt.clientName}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-600">
+                                  <FaPhoneAlt className="text-gray-400" />
+                                  <span>{appt.contactNumber}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-600">
+                                  <FaUserMd className="text-gray-400" />
+                                  <span>{appt.vetName}</span>
+                                </div>
+                                <div className="flex items-start gap-2 text-gray-600">
+                                  <span>
+                                    Age : {appt.petAge ? appt.petAge : "N/A"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {appt.reason && (
+                                <div className="flex items-start gap-2 text-gray-600">
+                                  <FaStickyNote className="text-gray-400 mt-1" />
+                                  <span>{appt.reason}</span>
+                                </div>
                               )}
-                              <span className="text-sm text-gray-500">
-                                {appt.time}
-                              </span>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                              <div className="flex items-center gap-2 text-gray-600">
-                                <FaUser className="text-gray-400" />
-                                <span>{appt.clientName}</span>
+                            {/* Actions */}
+                            {!appt.completed ? (
+                              <div className="flex sm:flex-col gap-2">
+                                <button
+                                  onClick={() => handleComplete(appt._id)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition"
+                                >
+                                  <FaCheckCircle />
+                                  <span className="hidden sm:inline">
+                                    Complete
+                                  </span>
+                                </button>
+                                <button
+                                  onClick={() => handleCancel(appt._id)}
+                                  className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition"
+                                >
+                                  <FaTimesCircle />
+                                  <span className="hidden sm:inline">
+                                    Cancel
+                                  </span>
+                                </button>
                               </div>
-                              <div className="flex items-center gap-2 text-gray-600">
-                                <FaPhoneAlt className="text-gray-400" />
-                                <span>{appt.contactNumber}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-gray-600">
-                                <FaUserMd className="text-gray-400" />
-                                <span>{appt.vetName}</span>
-                              </div>
-                            </div>
-
-                            {appt.reason && (
-                              <div className="flex items-start gap-2 text-gray-600">
-                                <FaStickyNote className="text-gray-400 mt-1" />
-                                <span>{appt.reason}</span>
+                            ) : (
+                              <div className="flex items-center gap-2 text-green-600">
+                                <FaCheckCircle />
+                                <span>Completed</span>
                               </div>
                             )}
                           </div>
-
-                          {/* Actions */}
-                          {!appt.completed ? (
-                            <div className="flex sm:flex-col gap-2">
-                              <button
-                                onClick={() => handleComplete(appt._id)}
-                                className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition"
-                              >
-                                <FaCheckCircle />
-                                <span className="hidden sm:inline">
-                                  Complete
-                                </span>
-                              </button>
-                              <button
-                                onClick={() => handleCancel(appt._id)}
-                                className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition"
-                              >
-                                <FaTimesCircle />
-                                <span className="hidden sm:inline">Cancel</span>
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2 text-green-600">
-                              <FaCheckCircle />
-                              <span>Completed</span>
-                            </div>
-                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-
-            {filteredAppointments.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                No appointments found
-              </div>
-            )}
+              );
+            })}
           </div>
         </div>
       )}
