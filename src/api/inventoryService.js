@@ -4,9 +4,15 @@ import { API } from "../config";
 
 const API_URL = `${API}inventory`;
 
+// services/inventoryService.js
 export const getAllInventory = async () => {
-  const response = await axios.get(API_URL);
-  return response.data;
+  try {
+    const response = await axios.get(API_URL);
+    return response.data; // Directly return the data array
+  } catch (error) {
+    console.error("Error fetching inventory:", error);
+    throw error; // Re-throw to handle in component
+  }
 };
 
 export const addInventoryItem = async (item) => {

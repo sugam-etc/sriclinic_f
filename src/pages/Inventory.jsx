@@ -99,7 +99,7 @@ const InventoryPage = () => {
           item.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     .filter((item) => {
-      if (activeTab === "low") return item.quantity < (item.threshold || 10);
+      if (activeTab === "low") return item.quantity <= (item.threshold || 10);
       if (activeTab === "out") return item.quantity === 0;
       return true;
     });

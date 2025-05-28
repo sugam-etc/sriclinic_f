@@ -1,12 +1,13 @@
-import React, { useState } from "react";
-import { createPatient } from "../api/patientService";
+import React, { useState, useEffect } from "react";
+import { createPatient, updatePatient } from "../api/patientService"; // Import updatePatient
 
-const AddPatientForm = ({ onPatientAdded, onCancel }) => {
+const AddPatientForm = ({ onPatientAdded, onCancel, patientToEdit }) => {
   const [form, setForm] = useState({
     name: "",
     species: "",
     breed: "",
     petCode: "",
+    age: "",
     sex: "",
     ownerName: "",
     ownerContact: "",
@@ -16,6 +17,43 @@ const AddPatientForm = ({ onPatientAdded, onCancel }) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Effect to pre-fill the form if a patientToEdit is provided
+  useEffect(() => {
+    if (patientToEdit) {
+      setForm({
+        name: patientToEdit.name || "",
+        species: patientToEdit.species || "",
+        breed: patientToEdit.breed || "",
+        petCode: patientToEdit.petCode || "",
+        age: patientToEdit.age || "",
+        sex: patientToEdit.sex || "",
+        ownerName: patientToEdit.ownerName || "",
+        ownerContact: patientToEdit.ownerContact || "",
+        // Format dates for datetime-local input
+        lastAppointment: patientToEdit.lastAppointment
+          ? new Date(patientToEdit.lastAppointment).toISOString().slice(0, 16)
+          : "",
+        nextAppointment: patientToEdit.nextAppointment
+          ? new Date(patientToEdit.nextAppointment).toISOString().slice(0, 16)
+          : "",
+      });
+    } else {
+      // Reset form if no patientToEdit (e.g., for adding a new patient)
+      setForm({
+        name: "",
+        species: "",
+        breed: "",
+        petCode: "",
+        age: "",
+        sex: "",
+        ownerName: "",
+        ownerContact: "",
+        lastAppointment: "",
+        nextAppointment: "",
+      });
+    }
+  }, [patientToEdit]); // Re-run when patientToEdit changes
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -27,27 +65,33 @@ const AddPatientForm = ({ onPatientAdded, onCancel }) => {
     setError(null);
 
     try {
-      // Prepare the data for API
       const patientData = {
         ...form,
-        // Convert empty strings to null for optional fields
         lastAppointment: form.lastAppointment || null,
         nextAppointment: form.nextAppointment || null,
       };
 
-      // Send to backend
-      const response = await createPatient(patientData);
+      let response;
+      if (patientToEdit) {
+        // If editing, call updatePatient
+        response = await updatePatient(patientToEdit._id, patientData);
+      } else {
+        // If adding, call createPatient
+        response = await createPatient(patientData);
+      }
 
-      // Notify parent component
       onPatientAdded(response.data);
-
-      // Close the form
-      onCancel();
+      onCancel(); // Close the form
     } catch (err) {
-      console.error("Failed to add patient:", err);
+      console.error(
+        `Failed to ${patientToEdit ? "update" : "add"} patient:`,
+        err
+      );
       setError(
         err.response?.data?.message ||
-          "Failed to add patient. Please try again."
+          `Failed to ${
+            patientToEdit ? "update" : "add"
+          } patient. Please try again.`
       );
     } finally {
       setIsSubmitting(false);
@@ -58,10 +102,10 @@ const AddPatientForm = ({ onPatientAdded, onCancel }) => {
     <form
       onSubmit={handleSubmit}
       className="bg-white border border-gray-200 rounded-xl shadow-lg max-w-4xl mx-auto p-8
-                 space-y-8 transition-all"
+                   space-y-8 transition-all"
     >
       <h2 className="text-3xl font-bold text-indigo-700 tracking-wide">
-        Add New Patient
+        {patientToEdit ? "Edit Patient" : "Add New Patient"}
       </h2>
 
       {error && (
@@ -145,11 +189,29 @@ const AddPatientForm = ({ onPatientAdded, onCancel }) => {
               focus:border-indigo-400 transition duration-150"
           />
         </div>
+        {/* Age */}
+        <div className="flex flex-col">
+          <label htmlFor="age" className="mb-2 font-semibold text-gray-700">
+            Age<span className="text-red-500">*</span>
+          </label>
+          <input
+            id="age"
+            type="text"
+            name="age"
+            value={form.age}
+            onChange={handleChange}
+            required
+            placeholder="2 years, 3 months.. etc"
+            className="rounded-lg border border-gray-300 px-4 py-3
+              placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400
+              focus:border-indigo-400 transition duration-150"
+          />
+        </div>
 
         {/* Pet Code */}
         <div className="flex flex-col">
           <label htmlFor="petCode" className="mb-2 font-semibold text-gray-700">
-            Pet Code<span className="text-red-500">*</span>
+            Microchip No.<span className="text-red-500">*</span>
           </label>
           <input
             id="petCode"
@@ -291,7 +353,13 @@ const AddPatientForm = ({ onPatientAdded, onCancel }) => {
             isSubmitting ? "bg-indigo-300" : "bg-indigo-600 hover:bg-indigo-700"
           } transition`}
         >
-          {isSubmitting ? "Saving..." : "Add Patient"}
+          {isSubmitting
+            ? patientToEdit
+              ? "Updating..."
+              : "Saving..."
+            : patientToEdit
+            ? "Update Patient"
+            : "Add Patient"}
         </button>
       </div>
     </form>

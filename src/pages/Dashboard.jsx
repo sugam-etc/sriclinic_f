@@ -8,7 +8,8 @@ import {
   FaChartLine,
   FaBell,
   FaTimes,
-  FaBars,
+  FaExclamationTriangle,
+  FaDollarSign,
 } from "react-icons/fa";
 import {
   format,
@@ -17,6 +18,8 @@ import {
   isAfter,
   isEqual,
   startOfDay,
+  addDays,
+  isBefore,
 } from "date-fns";
 
 // Import API services
@@ -37,14 +40,18 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // isMobileMenuOpen is not used in this snippet, but kept for context if used elsewhere
+  // const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const today = startOfDay(new Date());
+  const tomorrow = startOfDay(addDays(new Date(), 1));
 
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
       setError(null);
+
+      // Make API calls
       const [
         clientsResponse,
         patientsResponse,
@@ -59,81 +66,162 @@ const Dashboard = () => {
         getSales(),
       ]);
 
-      setClientsData(clientsResponse.data);
-      setPatientsData(patientsResponse.data);
-      setAppointmentsData(
-        Array.isArray(appointmentsResponse.data)
-          ? appointmentsResponse.data
-          : []
-      );
-      setInventoryData(
-        Array.isArray(inventoryResponse.data) ? inventoryResponse.data : []
-      );
-      setSalesData(salesResponse.data);
+      // Process responses safely
+      const fetchedClients = clientsResponse?.data || [];
+      const fetchedPatients = patientsResponse?.data || [];
+      const fetchedAppointments = Array.isArray(appointmentsResponse?.data)
+        ? appointmentsResponse.data
+        : [];
+      const fetchedInventory = inventoryResponse;
+      // const fetchedInventory = Array.isArray(inventoryResponse?.data)
+      //   ? inventoryResponse.data
+      //   : [];
+      const fetchedSales = salesResponse?.data || [];
 
-      const todayNotifications = [];
+      // Set states
+      setClientsData(fetchedClients);
+      setPatientsData(fetchedPatients);
+      setAppointmentsData(fetchedAppointments);
+      setInventoryData(fetchedInventory);
+      setSalesData(fetchedSales);
 
-      // 1. Today's Appointments
-      const todayAppointments = (
-        Array.isArray(appointmentsResponse.data)
-          ? appointmentsResponse.data
-          : []
-      ).filter((appt) => appt.date && isSameDay(parseISO(appt.date), today));
-      if (todayAppointments.length > 0) {
-        todayNotifications.push({
+      const currentNotifications = [];
+      console.log("Inv", fetchedInventory);
+
+      // 1. Today's or Tomorrow's Appointments
+      let relevantAppointments = fetchedAppointments.filter(
+        (appt) => appt.date && isSameDay(parseISO(appt.date), today)
+      );
+      let appointmentPeriod = "today";
+
+      if (relevantAppointments.length === 0) {
+        relevantAppointments = fetchedAppointments.filter(
+          (appt) => appt.date && isSameDay(parseISO(appt.date), tomorrow)
+        );
+        if (relevantAppointments.length > 0) {
+          appointmentPeriod = "tomorrow";
+        }
+      }
+
+      if (relevantAppointments.length > 0) {
+        currentNotifications.push({
           type: "Appointments",
-          message: `${todayAppointments.length} appointment(s) today.`,
-          details: todayAppointments
-            .map((a) => `${a.petName} (${a.clientName}) at ${a.time}`)
-            .join(", "),
+          icon: <FaCalendarAlt className="text-blue-500" />,
+          message: `${relevantAppointments.length} appointment${
+            relevantAppointments.length > 1 ? `s` : ""
+          }  ${appointmentPeriod}.`,
+          details: relevantAppointments.map(
+            (a) => `${a.petName} (${a.clientName}) at ${a.time}`
+          ),
         });
       }
 
-      // 2. Vaccinations Due Today/Soon
-      const vaccinationsDueToday = (
-        Array.isArray(appointmentsResponse.data)
-          ? appointmentsResponse.data
-          : []
-      ).filter(
+      // 2. Expiring Items within 1 week (including today)
+      const expiredItems = fetchedInventory.filter((item) => {
+        if (!item.expiryDate) return false;
+
+        try {
+          const expiryDate = startOfDay(parseISO(item.expiryDate));
+          if (isNaN(expiryDate.getTime())) return false;
+
+          // Check if expiry date is before today (already expired)
+          return isBefore(expiryDate, today);
+        } catch (e) {
+          console.warn("Invalid expiryDate format:", item.expiryDate, e);
+          return false;
+        }
+      });
+
+      console.log("Today's date:", today);
+      console.log(
+        "Items with expiry dates:",
+        fetchedInventory.filter((item) => item.expiryDate)
+      );
+
+      if (expiredItems.length > 0) {
+        currentNotifications.push({
+          type: "Expired Items",
+          icon: <FaExclamationTriangle className="text-red-500" />,
+          message: `${expiredItems.length} item${
+            expiredItems.length > 1 ? `s have` : ""
+          }  expired already!`,
+          details: expiredItems.map(
+            (item) =>
+              `${item.name} (Exp: ${format(
+                parseISO(item.expiryDate),
+                "MMM dd,yyyy"
+              )})`
+          ),
+        });
+      }
+
+      // 4. Vaccinations Due Today or Tomorrow ONLY
+      const vaccinationsDueTodayOrTomorrow = fetchedAppointments.filter(
         (appt) =>
           appt.reason &&
-          appt.reason.toLowerCase() === "vaccination" &&
+          appt.reason.toLowerCase().includes("vaccination") &&
           appt.date &&
           (isSameDay(parseISO(appt.date), today) ||
-            isAfter(parseISO(appt.date), today))
+            isSameDay(parseISO(appt.date), tomorrow))
       );
 
-      if (vaccinationsDueToday.length > 0) {
-        todayNotifications.push({
+      if (vaccinationsDueTodayOrTomorrow.length > 0) {
+        currentNotifications.push({
           type: "Vaccinations Due",
-          message: `${vaccinationsDueToday.length} vaccination(s) due today or soon.`,
-          details: vaccinationsDueToday
-            .map(
-              (v) =>
-                `${v.petName} (${v.clientName}) on ${format(
-                  parseISO(v.date),
-                  "MMM dd"
-                )}`
-            )
-            .join(", "),
+          icon: <FaSyringe className="text-yellow-500" />,
+          message: `${vaccinationsDueTodayOrTomorrow.length} vaccination${
+            vaccinationsDueTodayOrTomorrow.length > 1 ? `s are` : " is"
+          }  due today , tomorrow.`,
+          details: vaccinationsDueTodayOrTomorrow.map(
+            (v) =>
+              `${v.petName} (${v.clientName}) on ${format(
+                parseISO(v.date),
+                "MMM dd"
+              )} at ${v.time}` // Added time for clarity
+          ),
         });
       }
 
-      // 3. New Added Items
-      const newAddedItems = (
-        Array.isArray(inventoryResponse.data) ? inventoryResponse.data : []
-      ).filter(
-        (item) => item.createdAt && isSameDay(parseISO(item.createdAt), today)
-      );
-      if (newAddedItems.length > 0) {
-        todayNotifications.push({
-          type: "New Items",
-          message: `${newAddedItems.length} new item(s) added today.`,
-          details: newAddedItems.map((item) => item.name).join(", "),
+      // 5. Low Inventory Items
+
+      const lowInventoryItems = fetchedInventory.filter((item) => {
+        return item.quantity <= item.threshold;
+      });
+      // console.log("LowInv", lowInventoryItems);
+
+      if (lowInventoryItems.length > 0) {
+        currentNotifications.push({
+          type: "Low Inventory",
+          icon: <FaBox className="text-red-500" />,
+          message: `${lowInventoryItems.length} item${
+            lowInventoryItems.length > 1 ? `s are` : " is"
+          }  low on stock.`,
+          details: lowInventoryItems.map(
+            (item) => `${item.name} (${item.quantity} left)`
+          ),
+        });
+      }
+      // 5. Out of Stock Items
+
+      const outOfStock = fetchedInventory.filter((item) => {
+        return item.quantity == 0;
+      });
+      // console.log("LowInv", lowInventoryItems);
+
+      if (outOfStock.length > 0) {
+        currentNotifications.push({
+          type: "Out of Stock",
+          icon: <FaBox className="text-red-500" />,
+          message: `${outOfStock.length} item${
+            outOfStock.length > 1 ? `s are` : " is"
+          } out of stock.`,
+          details: outOfStock.map(
+            (item) => `Name: ${item.name}, Quantity: ${item.quantity} `
+          ),
         });
       }
 
-      setNotifications(todayNotifications);
+      setNotifications(currentNotifications);
     } catch (err) {
       console.error("Failed to fetch dashboard data:", err);
       setError(err.message || "Failed to load dashboard data.");
@@ -144,16 +232,16 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
-  // Compute dashboard stats
+  // Compute dashboard stats (kept original logic as it was good)
   const totalClients = clientsData.length;
   const totalPatients = patientsData.length;
 
   const vaccinationsDue = appointmentsData.filter((appt) => {
     return (
       appt.reason &&
-      appt.reason.toLowerCase() === "vaccination" &&
+      appt.reason.toLowerCase().includes("vaccination") &&
       appt.date &&
       (isAfter(parseISO(appt.date), today) ||
         isEqual(parseISO(appt.date), today))
@@ -172,11 +260,8 @@ const Dashboard = () => {
     .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
     .slice(0, 4);
 
-  const threshold = 4;
-  const lowInventoryItems = (
-    Array.isArray(inventoryData) ? inventoryData : []
-  ).filter(
-    (item) => item.quantity !== undefined && item.quantity <= threshold
+  const lowInventoryItemsCount = inventoryData.filter(
+    (item) => item.quantity !== undefined && item.quantity <= item.threshold
   ).length;
 
   const monthlyRevenue = salesData
@@ -215,13 +300,13 @@ const Dashboard = () => {
     },
     {
       title: "Low Inventory Items",
-      value: lowInventoryItems,
+      value: lowInventoryItemsCount,
       icon: <FaBox className="text-red-500 text-2xl" />,
       link: "/inventory",
     },
     {
       title: "Monthly Revenue",
-      value: `NPR  ${monthlyRevenue.toLocaleString()}`,
+      value: `NPR ${monthlyRevenue.toLocaleString()}`,
       icon: <FaChartLine className="text-purple-500 text-2xl" />,
       link: "/sales",
     },
@@ -267,13 +352,6 @@ const Dashboard = () => {
               </span>
             )}
           </button>
-          {/* <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 rounded-full bg-white shadow-md text-gray-600 hover:text-indigo-600 focus:outline-none"
-            aria-label="Menu"
-          >
-            <FaBars className="text-xl" />
-          </button> */}
         </div>
       </div>
 
@@ -298,7 +376,7 @@ const Dashboard = () => {
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
               <div className="p-4 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  Today's Tasks
+                  Today's Alerts
                 </h3>
                 <button
                   onClick={() => setShowNotifications(false)}
@@ -308,28 +386,63 @@ const Dashboard = () => {
                   <FaTimes />
                 </button>
               </div>
-              <div className="max-h-60 overflow-y-auto">
+              <div className="max-h-96 overflow-y-auto">
                 {notifications.length > 0 ? (
                   notifications.map((notif, index) => (
                     <div
                       key={index}
-                      className="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                      className={`p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 ${
+                        notif.type.includes("Expired Items") ||
+                        notif.type.includes("Low Inventory")
+                          ? "bg-red-50"
+                          : ""
+                      }`}
                     >
-                      <p className="text-sm font-medium text-gray-900">
-                        {notif.type}: {notif.message}
-                      </p>
-                      {notif.details && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {notif.details}
-                        </p>
-                      )}
+                      <div className="flex items-start">
+                        <div className="flex-shrink-0 mt-0.5 mr-3">
+                          {notif.icon}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            <span
+                              className={
+                                notif.type.includes("Expired Items") ||
+                                notif.type.includes("Low Inventory")
+                                  ? "text-red-600"
+                                  : ""
+                              }
+                            >
+                              {notif.type}: {notif.message}
+                            </span>
+                          </p>
+                          {notif.details && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {Array.isArray(notif.details) ? (
+                                notif.details.map((detailItem, detailIndex) => (
+                                  <p key={detailIndex}>{detailItem}</p>
+                                ))
+                              ) : (
+                                <p>{notif.details}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))
                 ) : (
                   <p className="p-4 text-sm text-gray-500 text-center">
-                    No tasks for today!
+                    No alerts for today!
                   </p>
                 )}
+              </div>
+              <div className="p-3 border-t border-gray-200 bg-gray-50 text-center">
+                <Link
+                  to="/inventory"
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                >
+                  View Inventory
+                </Link>
               </div>
             </div>
           )}
@@ -398,7 +511,7 @@ const Dashboard = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {upcomingAppointments.length > 0 ? (
                 upcomingAppointments.map((appointment) => (
-                  <tr key={appointment._id}>
+                  <tr key={appointment._id || appointment.id}>
                     <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm font-medium text-gray-900">
                       {appointment.petName} ({appointment.petType})
                     </td>
@@ -407,7 +520,7 @@ const Dashboard = () => {
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-xs md:text-sm text-gray-500">
                       {appointment.date &&
-                        format(parseISO(appointment.date), "MMM dd, yyyy")}{" "}
+                        format(parseISO(appointment.date), "MMM dd,yyyy")}{" "}
                       at {appointment.time}
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap">
@@ -452,7 +565,7 @@ const Dashboard = () => {
           <div className="absolute top-0 right-0 h-full w-4/5 bg-white shadow-lg">
             <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-semibold text-gray-800">
-                Today's Tasks
+                Today's Alerts
               </h3>
               <button
                 onClick={() => setShowNotifications(false)}
@@ -467,23 +580,58 @@ const Dashboard = () => {
                 notifications.map((notif, index) => (
                   <div
                     key={index}
-                    className="p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                    className={`p-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 ${
+                      notif.type.includes("Expired Items") ||
+                      notif.type.includes("Low Inventory")
+                        ? "bg-red-50"
+                        : ""
+                    }`}
                   >
-                    <p className="text-sm font-medium text-gray-900">
-                      {notif.type}: {notif.message}
-                    </p>
-                    {notif.details && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        {notif.details}
-                      </p>
-                    )}
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 mt-0.5 mr-3">
+                        {notif.icon}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          <span
+                            className={
+                              notif.type.includes("Expired Items") ||
+                              notif.type.includes("Low Inventory")
+                                ? "text-red-600"
+                                : ""
+                            }
+                          >
+                            {notif.type}: {notif.message}
+                          </span>
+                        </p>
+                        {notif.details && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {Array.isArray(notif.details) ? (
+                              notif.details.map((detailItem, detailIndex) => (
+                                <p key={detailIndex}>{detailItem}</p>
+                              ))
+                            ) : (
+                              <p>{notif.details}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))
               ) : (
                 <p className="p-4 text-sm text-gray-500 text-center">
-                  No tasks for today!
+                  No alerts for today!
                 </p>
               )}
+            </div>
+            <div className="p-3 border-t border-gray-200 bg-gray-50 text-center">
+              <Link
+                to="/inventory"
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+              >
+                View Inventory
+              </Link>
             </div>
           </div>
         </div>

@@ -28,6 +28,8 @@ const Clients = () => {
       return (
         (c.owner1 && c.owner1.toLowerCase().includes(term)) ||
         (c.owner2 && c.owner2.toLowerCase().includes(term)) ||
+        (c.additionalInfo.petName &&
+          c.additionalInfo.petName.toLowerCase().includes(term)) ||
         (c.contact && c.contact.toLowerCase().includes(term))
       );
     });
@@ -79,6 +81,7 @@ const Clients = () => {
                 "Address",
                 "Contact",
                 "Email",
+                "Pet Name",
                 "Actions",
               ].map((heading) => (
                 <th
@@ -113,9 +116,13 @@ const Clients = () => {
                   <td className="px-6 py-4">{client.address}</td>
                   <td className="px-6 py-4">{client.contact}</td>
                   <td className="px-6 py-4">{client.email}</td>
+                  <td className="px-6 py-4">{client.additionalInfo.petName}</td>
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => setSelectedClient(client)}
+                      onClick={() => {
+                        setSelectedClient(client);
+                        console.log(client);
+                      }}
                       className="text-indigo-600 hover:underline text-sm"
                     >
                       More Info

@@ -366,9 +366,7 @@ const Appointments = () => {
                                   <span>{appt.vetName}</span>
                                 </div>
                                 <div className="flex items-start gap-2 text-gray-600">
-                                  <span>
-                                    Age : {appt.petAge ? appt.petAge : "N/A"}
-                                  </span>
+                                  <span>Age : {appt.petAge}</span>
                                 </div>
                               </div>
 

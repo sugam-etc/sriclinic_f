@@ -4,12 +4,13 @@ import {
   FaCalendarCheck,
   FaTrash,
   FaFileInvoiceDollar,
-} from "react-icons/fa"; // Using FaCalendarCheck for appointments
+} from "react-icons/fa";
 import {
   getAppointments,
   deleteAppointment,
-} from "../api/appointmentService.js"; // Import appointment services
-import { format, isSameDay, parseISO } from "date-fns";
+} from "../api/appointmentService.js";
+// Import 'isValid' in addition to other date-fns functions
+import { format, isSameDay, parseISO, parse, isValid } from "date-fns";
 
 const VaccinationPage = () => {
   const [vaccinations, setVaccinations] = useState([]);
@@ -17,27 +18,18 @@ const VaccinationPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Function to fetch appointments and filter for vaccinations
   const fetchVaccinations = async () => {
     try {
       setIsLoading(true);
-      setError(null); // Clear previous errors
+      setError(null);
       const response = await getAppointments();
-      // Filter items where reason is 'vaccination' (case-insensitive)
       const filtered = response.data.filter(
         (appointment) =>
           appointment.reason &&
           appointment.reason.toLowerCase() === "vaccination"
       );
 
-      // Sort vaccinations by date in descending order (latest first)
-      const sortedVaccinations = filtered.sort((a, b) => {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return dateB.getTime() - dateA.getTime(); // Latest date first
-      });
-
-      setVaccinations(sortedVaccinations);
+      setVaccinations(filtered);
     } catch (err) {
       console.error("Failed to fetch vaccinations:", err);
       setError(err.message || "Failed to load vaccination appointments.");
@@ -46,14 +38,11 @@ const VaccinationPage = () => {
     }
   };
 
-  // Fetch vaccinations on component mount
   useEffect(() => {
     fetchVaccinations();
   }, []);
 
-  // Handles deleting a vaccination appointment
   const handleDelete = async (id) => {
-    // Using window.confirm for simplicity, consider a custom modal for better UX
     if (
       window.confirm(
         "Are you sure you want to delete this vaccination appointment?"
@@ -61,7 +50,7 @@ const VaccinationPage = () => {
     ) {
       try {
         await deleteAppointment(id);
-        fetchVaccinations(); // Re-fetch vaccinations to update the list
+        fetchVaccinations();
       } catch (err) {
         console.error("Failed to delete vaccination appointment:", err);
         setError(err.message || "Failed to delete appointment.");
@@ -69,7 +58,6 @@ const VaccinationPage = () => {
     }
   };
 
-  // Filters vaccinations based on the search term
   const filteredVaccinations = vaccinations.filter((vax) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -80,28 +68,79 @@ const VaccinationPage = () => {
     );
   });
 
-  // Group vaccinations by date for display
-  const groupedVaccinations = filteredVaccinations.reduce((acc, vax) => {
-    const vaxDate = format(parseISO(vax.date), "yyyy-MM-dd");
-    if (!acc[vaxDate]) {
-      acc[vaxDate] = [];
+  const sortedAndFilteredForDisplay = [...filteredVaccinations].sort((a, b) => {
+    const dateA = parseISO(a.date);
+    const dateB = parseISO(b.date);
+
+    // Safely parse time strings for sorting
+    const timeA =
+      a.time && typeof a.time === "string"
+        ? parse(a.time, "HH:mm", new Date())
+        : null;
+    const timeB =
+      b.time && typeof b.time === "string"
+        ? parse(b.time, "HH:mm", new Date())
+        : null;
+
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+
+    const isAToday = isValid(dateA) && isSameDay(dateA, today);
+    const isBToday = isValid(dateB) && isSameDay(dateB, today);
+    const isATomorrow = isValid(dateA) && isSameDay(dateA, tomorrow);
+    const isBTomorrow = isValid(dateB) && isSameDay(dateB, tomorrow);
+
+    const isAUpscoming = isValid(dateA) && dateA > today;
+    const isBUpscoming = isValid(dateB) && dateB > today;
+
+    // Primary sort: Today > Tomorrow > Upcoming > Past (Latest first)
+    if (isAToday && !isBToday) return -1;
+    if (!isAToday && isBToday) return 1;
+
+    if (isATomorrow && !isBTomorrow) return -1;
+    if (!isATomorrow && isBTomorrow) return 1;
+
+    if (isAUpscoming && isBUpscoming) {
+      // Sort upcoming by date and then time
+      const dateDiff = dateA.getTime() - dateB.getTime();
+      if (dateDiff !== 0) return dateDiff;
+      // If times exist and are valid, compare them
+      if (timeA && isValid(timeA) && timeB && isValid(timeB)) {
+        return timeA.getTime() - timeB.getTime();
+      } else if (timeA && isValid(timeA)) {
+        // A has valid time, B doesn't (A comes first)
+        return -1;
+      } else if (timeB && isValid(timeB)) {
+        // B has valid time, A doesn't (B comes first)
+        return 1;
+      }
+      return 0; // Neither has valid time, or both are invalid
     }
-    acc[vaxDate].push(vax);
-    return acc;
-  }, {});
+    if (isAUpscoming && !isBUpscoming) return -1;
+    if (!isAUpscoming && isBUpscoming) return 1;
 
-  // Sort dates in descending order (latest date first)
-  const sortedDates = Object.keys(groupedVaccinations).sort(
-    (a, b) => new Date(b) - new Date(a)
-  );
+    // For past dates, sort latest first, then by time
+    const dateDiff = dateB.getTime() - dateA.getTime();
+    if (dateDiff !== 0) return dateDiff;
+    // If times exist and are valid, compare them
+    if (timeA && isValid(timeA) && timeB && isValid(timeB)) {
+      return timeA.getTime() - timeB.getTime();
+    } else if (timeA && isValid(timeA)) {
+      // A has valid time, B doesn't (A comes first)
+      return -1;
+    } else if (timeB && isValid(timeB)) {
+      // B has valid time, A doesn't (B comes first)
+      return 1;
+    }
+    return 0; // Neither has valid time, or both are invalid
+  });
 
-  // Calculate summary statistics for vaccinations
   const totalVaccinationAppointments = vaccinations.length;
   const upcomingVaccinations = vaccinations.filter(
-    (vax) => parseISO(vax.date) > new Date()
+    (vax) => isValid(parseISO(vax.date)) && parseISO(vax.date) > new Date()
   ).length;
 
-  // Get unique client names for total clients vaccinated
   const totalClientsVaccinated = new Set(
     vaccinations.map((vax) => vax.clientName)
   ).size;
@@ -134,7 +173,6 @@ const VaccinationPage = () => {
         <h1 className="text-4xl font-bold text-indigo-700">
           Vaccination Appointments
         </h1>
-        {/* Removed "Add Medicine" button as this page is for display only */}
       </div>
 
       <div className="mb-6">
@@ -143,92 +181,125 @@ const VaccinationPage = () => {
           placeholder="Search by client, pet, reason, or notes"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md rounded-xl border border-gray-300 p-4 text-lg focus:outline-indigo-500"
+          className="w-full max-w-md rounded-lg border border-gray-300 p-3 text-lg focus:outline-blue-500 focus:border-blue-500"
           aria-label="Search vaccination appointments"
         />
       </div>
 
-      <section className="mb-8 grid grid-cols-3 gap-6 text-center bg-indigo-50 p-6 rounded-xl shadow-sm">
+      <section className="mb-8 grid grid-cols-3 gap-6 text-center bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-200">
         <div>
-          <h2 className="text-2xl font-semibold text-indigo-900">
+          <h2 className="text-2xl font-semibold text-gray-800">
             {totalVaccinationAppointments}
           </h2>
-          <p className="text-indigo-700 font-medium">Total Vaccinations</p>
+          <p className="text-gray-600 font-medium">Total Vaccinations</p>
         </div>
         <div>
-          <h2 className="text-2xl font-semibold text-indigo-900">
+          <h2 className="text-2xl font-semibold text-gray-800">
             {upcomingVaccinations}
           </h2>
-          <p className="text-indigo-700 font-medium">Upcoming Vaccinations</p>
+          <p className="text-gray-600 font-medium">Upcoming Vaccinations</p>
         </div>
         <div>
-          <h2 className="text-2xl font-semibold text-indigo-900">
+          <h2 className="text-2xl font-semibold text-gray-800">
             {totalClientsVaccinated}
           </h2>
-          <p className="text-indigo-700 font-medium">Clients Vaccinated</p>
+          <p className="text-gray-600 font-medium">Clients Vaccinated</p>
         </div>
       </section>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-300 shadow-sm">
-        <table className="w-full border-collapse text-left">
-          <thead className="bg-indigo-600 text-white">
+      <div className="overflow-x-auto border border-gray-300 rounded-lg shadow-sm">
+        <table className="w-full text-left text-gray-700">
+          <thead className="bg-indigo-500 text-white border-b border-gray-300">
             <tr>
-              <th className="p-4">Date</th>
-              <th className="p-4">Client Name</th>
-              <th className="p-4">Pet Name</th>
-              <th className="p-4">Reason</th>
-              <th className="p-4">Notes</th>
-              <th className="p-4">Actions</th>
+              <th className="p-3 font-semibold border-r border-gray-300">
+                Date
+              </th>
+              <th className="p-3 font-semibold border-r border-gray-300">
+                Client Name
+              </th>
+              <th className="p-3 font-semibold border-r border-gray-300">
+                Pet Name
+              </th>
+              <th className="p-3 font-semibold border-r border-gray-300">
+                Pet Type
+              </th>
+              <th className="p-3 font-semibold border-r border-gray-300">
+                Pet Age
+              </th>
+              <th className="p-3 font-semibold border-r border-gray-300">
+                Reason
+              </th>
+              <th className="p-3 font-semibold border-r border-gray-300">
+                Contact
+              </th>
+              <th className="p-3 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredVaccinations.length > 0 ? (
-              sortedDates.map((date, dateIndex) => (
-                <React.Fragment key={date}>
-                  {dateIndex > 0 && (
-                    <tr>
-                      <td colSpan="6" className="py-4"></td>{" "}
-                      {/* Margin between days */}
-                    </tr>
-                  )}
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="p-4 bg-gray-100 text-gray-700 font-semibold"
-                    >
-                      {format(parseISO(date), "EEEE, MMMM dd,yyyy")}
+            {sortedAndFilteredForDisplay.length > 0 ? (
+              sortedAndFilteredForDisplay.map((vax, index) => {
+                const parsedDate = parseISO(vax.date);
+                const parsedTime =
+                  vax.time &&
+                  typeof vax.time === "string" &&
+                  vax.time.trim() !== ""
+                    ? parse(vax.time, "HH:mm", new Date())
+                    : null;
+
+                return (
+                  <tr
+                    key={vax._id}
+                    className={`${
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50"
+                    } hover:bg-blue-50`}
+                  >
+                    <td className="p-3 border-b border-r border-gray-200">
+                      {/* Check if parsedDate is valid before formatting */}
+                      {isValid(parsedDate)
+                        ? format(parsedDate, "MMM dd, yyyy")
+                        : "Invalid Date"}
+                      {/* Check if parsedTime is valid before formatting */}
+                      {parsedTime && isValid(parsedTime) && (
+                        <span className="block text-xs text-gray-500">
+                          {format(parsedTime, "hh:mm a")}
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-3 border-b border-r border-gray-200">
+                      {vax.clientName}
+                    </td>
+                    <td className="p-3 border-b border-r border-gray-200">
+                      {vax.petName}
+                    </td>
+                    <td className="p-3 border-b border-r border-gray-200">
+                      {vax.petType}
+                    </td>
+                    <td className="p-3 border-b border-r border-gray-200">
+                      {vax.petAge}
+                    </td>
+                    <td className="p-3 border-b border-r border-gray-200">
+                      {vax.reason}
+                    </td>
+                    <td className="p-3 border-b border-r border-gray-200">
+                      {vax.contactNumber || "-"}
+                    </td>
+                    <td className="p-3 border-b border-gray-200">
+                      <button
+                        onClick={() => handleDelete(vax._id)}
+                        aria-label={`Delete vaccination for ${vax.petName}`}
+                        className="text-red-600 hover:text-red-800 transition-colors duration-200"
+                      >
+                        <FaTrash />
+                      </button>
                     </td>
                   </tr>
-                  {groupedVaccinations[date].map((vax) => (
-                    <tr
-                      key={vax._id}
-                      className="border-b border-gray-300 hover:bg-indigo-50"
-                    >
-                      <td className="p-4">
-                        {format(parseISO(vax.date), "MMM dd,yyyy")}
-                      </td>
-                      <td className="p-4">{vax.clientName}</td>
-                      <td className="p-4">{vax.petName}</td>
-                      <td className="p-4">{vax.reason}</td>
-                      <td className="p-4">{vax.notes || "-"}</td>
-                      <td className="p-4">
-                        <button
-                          onClick={() => handleDelete(vax._id)}
-                          aria-label={`Delete vaccination for ${vax.petName}`}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <FaTrash />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </React.Fragment>
-              ))
+                );
+              })
             ) : (
               <tr>
                 <td
                   colSpan="6"
-                  className="text-center p-8 text-gray-400 text-lg"
+                  className="text-center p-8 text-gray-400 text-lg bg-white"
                 >
                   No vaccination appointments found.
                 </td>

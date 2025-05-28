@@ -184,7 +184,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
                   htmlFor="patientId"
                   className="block text-lg font-medium text-gray-700 mb-1"
                 >
-                  Patient ID
+                  Mircochip No
                 </label>
                 <input
                   type="text"
