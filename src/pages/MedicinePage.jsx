@@ -200,8 +200,7 @@ const MedicinesPage = () => {
                   "Type",
                   "Unit",
                   "Qty",
-                  "Cost Price", // Added Cost Price header for clarity
-                  "Selling Price",
+
                   "Profit/Unit", // Changed to Profit/Unit for clarity
                   "Expiry",
                   "Batch No.", // Added Batch Number
@@ -236,12 +235,12 @@ const MedicinesPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {m.quantity}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       NPR {(m.costPrice || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       NPR {(m.sellingPrice || 0).toFixed(2)}
-                    </td>
+                    </td> */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       NPR{" "}
                       {((m.sellingPrice || 0) - (m.costPrice || 0)).toFixed(2)}
