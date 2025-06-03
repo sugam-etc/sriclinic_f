@@ -81,9 +81,9 @@ function App() {
           element={
             loggedInUser ? (
               <div className="flex flex-col min-h-screen bg-gray-50">
-                <div className="md:hidden">
+                {/* <div className="md:hidden">
                   <Navbar toggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
-                </div>
+                </div> */}
                 <div className="flex flex-1 overflow-hidden">
                   <div className="hidden md:block">
                     <Sidebar

@@ -25,3 +25,7 @@ body {
 .print-only {
   display: block !important;
 }
+/* Tailwind shortcut for input styles */
+.input {
+  @apply p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
