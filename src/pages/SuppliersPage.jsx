@@ -1,20 +1,16 @@
 import { useEffect, useState } from "react";
 import AddSupplierForm from "../components/AddSupplierForm";
-import {
-  getSuppliers,
-  createSupplier, // Keep if needed for AddSupplierForm, though not directly used here
-  updateSupplier, // Keep if needed for AddSupplierForm, though not directly used here
-  deleteSupplier,
-} from "../api/supplierService.js";
+import { getSuppliers, deleteSupplier } from "../api/supplierService.js";
 import { FaUserPlus, FaTrash, FaEdit } from "react-icons/fa"; // Added FaEdit for potential future use
 import { IoMdArrowRoundBack } from "react-icons/io";
+import { useNavigate } from "react-router-dom";
 
 const SuppliersPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState(null); // State to hold supplier being edited
-
+  const navigate = useNavigate();
   const toggleForm = () => {
     setShowForm((prev) => !prev);
     setSelectedSupplier(null); // Clear selected supplier when toggling form
@@ -148,7 +144,12 @@ const SuppliersPage = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredSuppliers.map((supplier) => (
                     <tr key={supplier._id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 hover:cursor-pointer hover:underline"
+                        onClick={() => {
+                          navigate(`/suppliers/${supplier._id}`);
+                        }}
+                      >
                         {supplier.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

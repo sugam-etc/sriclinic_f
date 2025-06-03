@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import AddPatientForm from "../components/AddPatientForm";
 import { getPatients, deletePatient } from "../api/patientService"; // Import deletePatient
-
+import { useNavigate } from "react-router-dom";
 const PatientPage = () => {
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null); // New state for editing
-
+  const navigate = useNavigate();
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -164,14 +164,19 @@ const PatientPage = () => {
                   key={p._id}
                   className="border-b border-gray-100 hover:bg-indigo-50 transition-colors"
                 >
-                  <td className="px-6 py-4 font-medium text-gray-900">
+                  <td
+                    className="px-6 py-4 font-medium text-gray-900 hover:cursor-pointer hover:underline"
+                    onClick={() => {
+                      navigate(`/patient/${p._id}`);
+                    }}
+                  >
                     {p.name}
                   </td>
                   <td className="px-6 py-4">{p.species}</td>
                   <td className="px-6 py-4">{p.breed}</td>
                   <td className="px-6 py-4">{p.age}</td>
                   <td className="px-6 py-4 font-mono tracking-wide">
-                    {p.petCode}
+                    {p.petId}
                   </td>
                   <td className="px-6 py-4 capitalize">{p.sex}</td>
                   <td className="px-6 py-4">

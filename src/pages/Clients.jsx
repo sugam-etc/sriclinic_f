@@ -21,6 +21,7 @@ const Clients = () => {
       console.error("Error fetching clients:", error);
     }
   };
+
   const filteredClients = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return clients;
@@ -30,7 +31,9 @@ const Clients = () => {
         (c.owner2 && c.owner2.toLowerCase().includes(term)) ||
         (c.additionalInfo.petName &&
           c.additionalInfo.petName.toLowerCase().includes(term)) ||
-        (c.contact && c.contact.toLowerCase().includes(term))
+        (c.contact && c.contact.toLowerCase().includes(term)) ||
+        (c.address && c.address.toLowerCase().includes(term)) || // Added address to search
+        (c.email && c.email.toLowerCase().includes(term)) // Added email to search
       );
     });
   }, [clients, searchTerm]);
@@ -45,7 +48,7 @@ const Clients = () => {
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
           <input
             type="text"
-            placeholder="Search by Owner or Contact"
+            placeholder="Search by Owner, Contact, Address, Email, or Pet Name" // Updated placeholder
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full sm:w-80 px-5 py-3 border border-gray-300 rounded-lg shadow-sm
@@ -76,8 +79,8 @@ const Clients = () => {
           <thead className="bg-indigo-50">
             <tr>
               {[
-                "Owner 1",
-                "Owner 2",
+                "Owner",
+
                 "Address",
                 "Contact",
                 "Email",
@@ -97,7 +100,7 @@ const Clients = () => {
             {filteredClients.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={5}
                   className="text-center py-12 text-gray-400 italic select-none"
                 >
                   No clients found.
@@ -110,19 +113,17 @@ const Clients = () => {
                   className="border-b border-gray-100 hover:bg-indigo-50 transition-colors"
                 >
                   <td className="px-6 py-4 font-medium text-gray-900">
-                    {client.owner1}
+                    {client.owner}
                   </td>
-                  <td className="px-6 py-4">{client.owner2}</td>
                   <td className="px-6 py-4">{client.address}</td>
                   <td className="px-6 py-4">{client.contact}</td>
-                  <td className="px-6 py-4">{client.email}</td>
+                  <td className="px-6 py-4">
+                    {client.email ? client.email : "N/A"}
+                  </td>
                   <td className="px-6 py-4">{client.additionalInfo.petName}</td>
                   <td className="px-6 py-4">
                     <button
-                      onClick={() => {
-                        setSelectedClient(client);
-                        console.log(client);
-                      }}
+                      onClick={() => setSelectedClient(client)}
                       className="text-indigo-600 hover:underline text-sm"
                     >
                       More Info

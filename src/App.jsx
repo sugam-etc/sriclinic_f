@@ -7,6 +7,8 @@ import {
 import { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
+import PetDetailPage from "./pages/PetDetailPage";
+import SupplierDetailPage from "./pages/SupplierDetailPage";
 
 // Lazy-loaded pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -119,12 +121,20 @@ function App() {
                         />
                         <Route path="/suppliers" element={<SuppliersPage />} />
                         <Route
+                          path="/suppliers/:supplierId"
+                          element={<SupplierDetailPage />}
+                        />
+                        <Route
                           path="/medical-records"
                           element={<MedicalRecords />}
                         />
                         <Route path="/inventory" element={<Inventory />} />
                         <Route path="/expired" element={<ExpiredItemsPage />} />
                         <Route path="/sales" element={<Sales />} />
+                        <Route
+                          path="/patient/:patientId"
+                          element={<PetDetailPage />}
+                        />
                       </Routes>
                     </Suspense>
                   </main>

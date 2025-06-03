@@ -5,6 +5,7 @@ import { API } from "../config";
 const API_BASE = `${API}medical-records`;
 
 export const getMedicalRecords = () => axios.get(API_BASE);
+export const getMedicalRecord = (id) => axios.get(`${API_BASE}/${id}`);
 export const createMedicalRecord = (data) => axios.post(API_BASE, data);
 export const updateMedicalRecord = (id, data) =>
   axios.put(`${API_BASE}/${id}`, data);

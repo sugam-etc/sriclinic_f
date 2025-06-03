@@ -6,7 +6,7 @@ const AddPatientForm = ({ onPatientAdded, onCancel, patientToEdit }) => {
     name: "",
     species: "",
     breed: "",
-    petCode: "",
+    petId: "",
     age: "",
     sex: "",
     ownerName: "",
@@ -25,7 +25,7 @@ const AddPatientForm = ({ onPatientAdded, onCancel, patientToEdit }) => {
         name: patientToEdit.name || "",
         species: patientToEdit.species || "",
         breed: patientToEdit.breed || "",
-        petCode: patientToEdit.petCode || "",
+        petId: patientToEdit.petId || "",
         age: patientToEdit.age || "",
         sex: patientToEdit.sex || "",
         ownerName: patientToEdit.ownerName || "",
@@ -210,14 +210,14 @@ const AddPatientForm = ({ onPatientAdded, onCancel, patientToEdit }) => {
 
         {/* Pet Code */}
         <div className="flex flex-col">
-          <label htmlFor="petCode" className="mb-2 font-semibold text-gray-700">
+          <label htmlFor="petId" className="mb-2 font-semibold text-gray-700">
             Microchip No.<span className="text-red-500">*</span>
           </label>
           <input
-            id="petCode"
+            id="petId"
             type="text"
-            name="petCode"
-            value={form.petCode}
+            name="petId"
+            value={form.petId}
             onChange={handleChange}
             required
             placeholder="Unique identifier"

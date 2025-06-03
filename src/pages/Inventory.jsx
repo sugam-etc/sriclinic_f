@@ -53,13 +53,14 @@ const InventoryPage = () => {
 
   const handleAddStock = async (_id, quantity) => {
     const item = inventory.find((item) => item._id === _id);
+    if (!item) return; // Defensive check
     const updatedQuantity = item.quantity + quantity;
     try {
       const updatedItem = await updateInventoryItem(_id, {
         quantity: updatedQuantity,
       });
       setInventory((prev) =>
-        prev.map((item) => (item._id === _id ? updatedItem : item))
+        prev.map((i) => (i._id === _id ? updatedItem : i))
       );
     } catch (error) {
       console.error("Failed to update stock:", error);
@@ -68,14 +69,13 @@ const InventoryPage = () => {
 
   const handleReduceStock = async (id, quantity) => {
     const item = inventory.find((item) => item._id === id);
+    if (!item) return; // Defensive check
     const updatedQuantity = Math.max(0, item.quantity - quantity);
     try {
       const updatedItem = await updateInventoryItem(id, {
         quantity: updatedQuantity,
       });
-      setInventory((prev) =>
-        prev.map((item) => (item._id === id ? updatedItem : item))
-      );
+      setInventory((prev) => prev.map((i) => (i._id === id ? updatedItem : i)));
     } catch (error) {
       console.error("Failed to update stock:", error);
     }
@@ -91,18 +91,28 @@ const InventoryPage = () => {
   };
 
   const filteredItems = inventory
-    .filter(
-      (item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.manufacturer &&
-          item.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    .filter((item) => {
+      const nameMatch = item.name
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const typeMatch = item.type
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const manufacturerMatch = item.manufacturer
+        ?.toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const supplierMatch =
+        typeof item.supplier === "string" &&
+        item.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+
+      return nameMatch || typeMatch || manufacturerMatch || supplierMatch;
+    })
     .filter((item) => {
       if (activeTab === "low") return item.quantity <= (item.threshold || 10);
       if (activeTab === "out") return item.quantity === 0;
       return true;
     });
+
   const totalInventoryValue = inventory.reduce(
     (sum, item) => sum + item.quantity * item.costPrice,
     0
@@ -154,7 +164,7 @@ const InventoryPage = () => {
             </div>
             <input
               type="text"
-              placeholder="Search by item name, category or manufacturer..."
+              placeholder="Search by item name, category, manufacturer, or supplier..."
               className="block w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-md"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -340,19 +350,7 @@ const InventoryPage = () => {
                         NPR {item.sellingPrice.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-md text-gray-900">
-                        <div className="flex items-center">
-                          {/* NPR {(item.sellingPrice - item.costPrice).toFixed(2)}
-                          <span className="ml-2 text-sm text-green-600">
-                            (
-                            {(
-                              ((item.sellingPrice - item.costPrice) /
-                                item.costPrice) *
-                              100
-                            ).toFixed(1)}
-                            %)
-                          </span> */}
-                          {item.unitName}
-                        </div>
+                        <div className="flex items-center">{item.unitName}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-md font-medium">
                         <div className="flex justify-end gap-3">

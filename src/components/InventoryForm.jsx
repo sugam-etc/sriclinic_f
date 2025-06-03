@@ -9,25 +9,36 @@ import {
   FaDollarSign,
   FaInfoCircle,
 } from "react-icons/fa";
-import { addInventoryItem, updateInventoryItem } from "../api/inventoryService";
+// Assuming these are correctly imported from your API service
+import { addInventoryItem, updateInventoryItem } from "../api/inventoryService"; // Assuming this path is correct
+
 const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
     type: "Medicine",
     manufacturer: "",
-    supplier: "",
+    supplier: {
+      // Supplier is now an object for form input
+      _id: "", // To store the actual supplier ID if editing
+      name: "",
+      company: "",
+      PAN: "",
+      phone: "",
+      email: "",
+      address: "",
+    },
     batchNumber: "",
     expiryDate: "",
     quantity: 0,
-    unitName: "", // Changed from unitName to unit
+    unitName: "",
     costPrice: 0,
     sellingPrice: 0,
-    price: 0, // Changed from price to mrp as per your form input
-    threshold: 0, // Changed from lowStockThreshold to threshold
+    price: 0,
+    threshold: 0,
     taxRate: 0,
     location: "Main Storage",
-    notes: "", // Changed from description to notes
+    notes: "",
   });
 
   useEffect(() => {
@@ -37,12 +48,33 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
         ? new Date(editingItem.expiryDate).toISOString().split("T")[0]
         : "";
 
+      // Determine if supplier is populated or just an ID string
+      const isSupplierPopulated =
+        typeof editingItem.supplier === "object" &&
+        editingItem.supplier !== null;
+
       setFormData({
         name: editingItem.name || "",
         description: editingItem.description || "",
         type: editingItem.type || "Medicine",
         manufacturer: editingItem.manufacturer || "",
-        supplier: editingItem.supplier || "",
+        supplier: {
+          _id: isSupplierPopulated
+            ? editingItem.supplier._id
+            : editingItem.supplier || "",
+          name: isSupplierPopulated
+            ? editingItem.supplier.name
+            : editingItem.supplier || "", // If not populated, assume the string is the name/ID
+          company: isSupplierPopulated
+            ? editingItem.supplier.company || ""
+            : "",
+          PAN: isSupplierPopulated ? editingItem.supplier.PAN || "" : "",
+          phone: isSupplierPopulated ? editingItem.supplier.phone || "" : "",
+          email: isSupplierPopulated ? editingItem.supplier.email || "" : "",
+          address: isSupplierPopulated
+            ? editingItem.supplier.address || ""
+            : "",
+        },
         batchNumber: editingItem.batchNumber || "",
         expiryDate: formattedExpiryDate,
         quantity: editingItem.quantity || 0,
@@ -60,34 +92,44 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        name === "quantity" ||
-        name === "costPrice" ||
-        name === "sellingPrice" ||
-        name === "price" ||
-        name === "threshold" ||
-        name === "taxRate"
-          ? parseFloat(value) || 0
-          : value,
-    }));
+
+    // Handle nested supplier fields
+    if (name.startsWith("supplier.")) {
+      const supplierFieldName = name.split(".")[1];
+      setFormData((prev) => ({
+        ...prev,
+        supplier: {
+          ...prev.supplier,
+          [supplierFieldName]: value,
+        },
+      }));
+    } else {
+      // Handle top-level fields
+      setFormData((prev) => ({
+        ...prev,
+        [name]:
+          name === "quantity" ||
+          name === "costPrice" ||
+          name === "sellingPrice" ||
+          name === "price" ||
+          name === "threshold" ||
+          name === "taxRate"
+            ? parseFloat(value) || 0
+            : value,
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
+      let resultItem;
       if (editingItem) {
         // Update existing item
-        const updatedItem = await updateInventoryItem(
-          editingItem._id,
-          formData
-        );
+        resultItem = await updateInventoryItem(editingItem._id, formData);
         setInventory((prev) =>
-          prev.map((item) =>
-            item._id === updatedItem._id ? updatedItem : item
-          )
+          prev.map((item) => (item._id === resultItem._id ? resultItem : item))
         );
         console.log("Updating inventory data:", formData);
       } else {
@@ -96,16 +138,30 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
           ...formData,
           lastUpdated: new Date().toISOString(),
         };
-        const addedItem = await addInventoryItem(newItem);
-        setInventory((prev) => [...prev, addedItem]);
+        resultItem = await addInventoryItem(newItem);
+        setInventory((prev) => [...prev, resultItem]); // Add the returned item with populated supplier
         console.log("Adding inventory data:", newItem);
       }
       onCancel(); // Close form
     } catch (error) {
       console.error("Failed to save inventory item:", error);
-      alert("Error saving inventory item.");
+      // Using a custom modal or toast for alerts instead of window.alert()
+      const messageBox = document.createElement("div");
+      messageBox.className =
+        "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+      messageBox.innerHTML = `
+        <div class="bg-white p-6 rounded-lg shadow-xl text-center">
+          <p class="text-lg font-semibold text-red-600 mb-4">Error saving inventory item.</p>
+          <p class="text-gray-700 mb-4">${
+            error.message || "An unknown error occurred."
+          }</p>
+          <button class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700" onclick="this.parentNode.parentNode.remove()">Close</button>
+        </div>
+      `;
+      document.body.appendChild(messageBox);
     }
   };
+
   const calculateProfit = () => {
     return formData.sellingPrice - formData.costPrice;
   };
@@ -165,7 +221,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label
-                  htmlFor="category"
+                  htmlFor="type"
                   className="block text-lg font-medium text-gray-700 mb-1"
                 >
                   Category *
@@ -173,7 +229,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 <input
                   id="type"
                   name="type"
-                  value={formData.category}
+                  value={formData.type}
                   onChange={handleChange}
                   required
                   className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
@@ -182,7 +238,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
 
               <div>
                 <label
-                  htmlFor="unit"
+                  htmlFor="unitName"
                   className="block text-lg font-medium text-gray-700 mb-1"
                 >
                   Unit *
@@ -229,7 +285,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
 
               <div>
                 <label
-                  htmlFor="lowStockThreshold"
+                  htmlFor="threshold"
                   className="block text-lg font-medium text-gray-700 mb-1"
                 >
                   Low Stock Threshold *
@@ -254,7 +310,6 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
               >
                 Storage Location *
               </label>
-
               <input
                 type="text"
                 id="location"
@@ -361,7 +416,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
 
             <div>
               <label
-                htmlFor="mrp"
+                htmlFor="price"
                 className="block text-lg font-medium text-gray-700 mb-1"
               >
                 Maximum Retail Price (MRP)
@@ -455,34 +510,97 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
 
             <div>
               <label
-                htmlFor="supplier"
+                htmlFor="supplierName"
                 className="block text-lg font-medium text-gray-700 mb-1"
               >
-                Supplier
+                Supplier Name
               </label>
               <input
                 type="text"
-                id="supplier"
-                name="supplier"
-                value={formData.supplier}
+                id="supplierName"
+                name="supplier.name"
+                value={formData.supplier.name}
                 onChange={handleChange}
                 className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
               />
             </div>
-
             <div>
               <label
-                htmlFor="description"
+                htmlFor="supplierCompany"
                 className="block text-lg font-medium text-gray-700 mb-1"
               >
-                Additional Notes
+                Supplier Company
               </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
+              <input
+                type="text"
+                id="supplierCompany"
+                name="supplier.company"
+                value={formData.supplier.company}
                 onChange={handleChange}
-                rows={3}
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="supplierPAN"
+                className="block text-lg font-medium text-gray-700 mb-1"
+              >
+                Supplier PAN
+              </label>
+              <input
+                type="text"
+                id="supplierPAN"
+                name="supplier.PAN"
+                value={formData.supplier.PAN}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="supplierPhone"
+                className="block text-lg font-medium text-gray-700 mb-1"
+              >
+                Supplier Contact
+              </label>
+              <input
+                type="text"
+                id="supplierPhone"
+                name="supplier.phone"
+                value={formData.supplier.phone}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="supplierEmail"
+                className="block text-lg font-medium text-gray-700 mb-1"
+              >
+                Supplier Email
+              </label>
+              <input
+                type="email"
+                id="supplierEmail"
+                name="supplier.email"
+                value={formData.supplier.email}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="supplierAddress"
+                className="block text-lg font-medium text-gray-700 mb-1"
+              >
+                Supplier Address
+              </label>
+              <input
+                type="text"
+                id="supplierAddress"
+                name="supplier.address"
+                value={formData.supplier.address}
+                onChange={handleChange}
                 className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
               />
             </div>

@@ -456,11 +456,17 @@ const SalesPage = () => {
               {/* Clinic info on the right */}
               <div className="text-right ml-4">
                 <h1 className="text-xl font-bold text-gray-800">
-                  VetCare Clinic
+                  Sri Vetenary Clinic
                 </h1>
-                <p className="text-gray-600 text-xs">123 Veterinary Street</p>
-                <p className="text-600 text-xs">Animal City, AC 12345</p>
-                <p className="text-gray-600 text-xs">Phone: (123) 456-7890</p>
+                <p className="text-gray-600 text-xs">
+                  Nursery Chowk, Dhungedhara
+                </p>
+                <p className="text-gray-600 text-xs">
+                  srivetclinic2022@gmail.com
+                </p>
+                <p className="text-gray-600 text-xs">
+                  Phone: +977 9849709736, 9808956106
+                </p>
               </div>
             </div>
 

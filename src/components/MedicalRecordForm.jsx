@@ -5,28 +5,100 @@ import {
   FaCalendarAlt,
   FaTimes,
   FaPlus,
+  FaPaw, // Icon for species/breed
+  FaBirthdayCake, // Icon for age
+  FaVenusMars, // Icon for sex
 } from "react-icons/fa";
 import {
   createMedicalRecord,
   updateMedicalRecord,
-} from "../api/medicalRecordService.js";
+} from "../api/medicalRecordService.js"; // Corrected path assuming it's in a sibling 'api' folder
 
-const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
+const MedicalRecordForm = ({
+  record,
+  setRecords,
+  onCancel,
+  appointmentData,
+  onRecordSuccess,
+}) => {
   // Initialize form data from record if editing, else default values
-  const [formData, setFormData] = useState({
-    date: new Date().toISOString().split("T")[0],
-    patientId: "",
-    patientName: "",
-    patientType: "",
-    ownerName: "",
-    vetenarian: "Dr. Smith",
-    diagnosis: "",
-    treatment: "",
-    medications: [],
-    notes: "",
-    followUpDate: "",
-    status: "active",
-    ...record,
+  // Includes all fields from Patient and MedicalRecord schemas
+  const [formData, setFormData] = useState(() => {
+    // Base default values
+    const defaultFormData = {
+      date: new Date().toISOString().split("T")[0],
+      vetenarian: "Dr. Smith", // Default veterinarian
+      diagnosis: "",
+      treatment: "",
+      notes: "",
+      followUpDate: "", // Can be null or empty string
+
+      // Patient fields (nested in 'patient' object for backend)
+      patientName: "", // Maps to patient.name
+      species: "", // Maps to patient.species (formerly patientType)
+      age: "", // Maps to patient.age
+      breed: "", // Maps to patient.breed
+      petId: "", // Maps to patient.petId (Microchip No)
+      sex: "", // Maps to patient.sex
+      ownerName: "", // Maps to patient.ownerName
+      ownerContact: "", // Maps to patient.ownerContact
+      lastAppointment: "", // Maps to patient.lastAppointment
+      nextAppointment: "", // Maps to patient.nextAppointment
+    };
+
+    // If 'record' is provided (for editing existing medical record)
+    if (record) {
+      return {
+        ...defaultFormData,
+        date: record.date
+          ? new Date(record.date).toISOString().split("T")[0]
+          : defaultFormData.date,
+        vetenarian: record.vetenarian,
+        diagnosis: record.diagnosis,
+        treatment: record.treatment,
+        notes: record.notes,
+        followUpDate: record.followUpDate
+          ? new Date(record.followUpDate).toISOString().slice(0, 16)
+          : "",
+        // Extract patient details if available and populated
+        patientName: record.patient?.name || "",
+        species: record.patient?.species || "",
+        age: record.patient?.age || "",
+        breed: record.patient?.breed || "",
+        petId: record.patient?.petId || "",
+        sex: record.patient?.sex || "",
+        ownerName: record.patient?.ownerName || "",
+        ownerContact: record.patient?.ownerContact || "",
+        lastAppointment: record.patient?.lastAppointment
+          ? new Date(record.patient.lastAppointment).toISOString().split("T")[0]
+          : "",
+        nextAppointment: record.patient?.nextAppointment
+          ? new Date(record.patient.nextAppointment).toISOString().split("T")[0]
+          : "",
+      };
+    }
+
+    // If 'appointmentData' is provided (for creating new medical record from appointment)
+    if (appointmentData) {
+      return {
+        ...defaultFormData,
+        patientName: appointmentData.petName || "",
+        species: appointmentData.petType || "",
+        age: appointmentData.petAge || "",
+        ownerName: appointmentData.clientName || "",
+        ownerContact: appointmentData.contactNumber || "",
+        vetenarian: appointmentData.vetName || defaultFormData.vetenarian,
+        date: appointmentData.date
+          ? new Date(appointmentData.date).toISOString().split("T")[0]
+          : defaultFormData.date,
+        notes: `Appointment Reason: ${appointmentData.reason || ""}`, // Pre-fill notes with appointment reason
+        lastAppointment:
+          new Date(appointmentData.date).toISOString().split("T")[0] || "", // Set last appointment to the current appointment date
+      };
+    }
+
+    // If neither 'record' nor 'appointmentData' is provided, use default values
+    return defaultFormData;
   });
 
   const [medicationsInputs, setMedicationsInputs] = useState(
@@ -38,6 +110,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  // Update formData.medications when medicationsInputs changes
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
@@ -45,6 +118,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
     }));
   }, [medicationsInputs]);
 
+  // Handle changes for main form fields
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -53,6 +127,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
     }));
   };
 
+  // Handle changes for medication input fields
   const handleMedicationInputChange = (index, e) => {
     const { name, value } = e.target;
     setMedicationsInputs((prev) => {
@@ -62,6 +137,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
     });
   };
 
+  // Add a new medication input row
   const addMedicationsInput = () => {
     setMedicationsInputs((prev) => [
       ...prev,
@@ -69,10 +145,12 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
     ]);
   };
 
+  // Remove a medication input row
   const removeMedicationsInput = (index) => {
     setMedicationsInputs((prev) => {
       const newInputs = [...prev];
       newInputs.splice(index, 1);
+      // Ensure there's always at least one medication input row
       return newInputs.length
         ? newInputs
         : [{ name: "", dosage: "", frequency: "", duration: "", quantity: 1 }];
@@ -85,39 +163,73 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
     setError(null);
 
     try {
-      // Prepare the data to match the backend model
-      const recordData = {
-        patientId: formData.patientId,
-        patientName: formData.patientName,
-        patientType: formData.patientType,
+      // Prepare the patient data object as expected by the backend controller
+      const patientData = {
+        name: formData.patientName,
+        species: formData.species,
+        age: formData.age,
+        breed: formData.breed,
+        petId: formData.petId,
+        sex: formData.sex,
         ownerName: formData.ownerName,
+        ownerContact: formData.ownerContact,
+        // Only include optional date fields if they have values
+        lastAppointment: formData.lastAppointment || undefined,
+        nextAppointment: formData.nextAppointment || undefined,
+      };
+
+      // Prepare the medical record data object for the backend
+      const recordData = {
+        patient: patientData, // Send the patient object
         vetenarian: formData.vetenarian,
         date: formData.date,
         diagnosis: formData.diagnosis,
         treatment: formData.treatment,
         notes: formData.notes,
-        followUpDate: formData.followUpDate,
+        // Only include optional date field if it has a value
+        followUpDate: formData.followUpDate || undefined,
+        // Filter out empty medication entries and ensure quantity is a number
         medications: medicationsInputs
-          .filter((med) => med.name.trim() && med.dosage.trim())
+          .filter(
+            (med) =>
+              med.name.trim() &&
+              med.frequency.trim() &&
+              med.duration.trim() &&
+              Number(med.quantity) >= 1
+          ) // Ensure all required medication fields are present
           .map((med) => ({
             ...med,
-            quantity: Number(med.quantity) || 1,
+            quantity: Number(med.quantity) || 1, // Ensure quantity is a number, default to 1
           })),
       };
 
+      console.log("Sending recordData for update/create:", recordData); // ADDED FOR DEBUGGING
+
+      let response;
       if (record?._id) {
-        // Update existing record
-        const response = await updateMedicalRecord(record._id, recordData);
+        // Update existing record if record._id is present
+        response = await updateMedicalRecord(record._id, recordData);
         setRecords((prev) =>
           prev.map((r) => (r._id === record._id ? response.data : r))
         );
       } else {
         // Create new record
-        const response = await createMedicalRecord(recordData);
-        setRecords((prev) => [response.data, ...prev]);
+        response = await createMedicalRecord(recordData);
+        // The backend returns { medicalRecord, patient }
+        // We need to add the full medicalRecord to the state, ensuring 'patient' is an object
+        const newRecordWithPopulatedPatient = {
+          ...response.data.medicalRecord, // Access medicalRecord from response.data
+          patient: response.data.patient, // Access patient from response.data
+        };
+        setRecords((prev) => [newRecordWithPopulatedPatient, ...prev]);
+
+        // Call onRecordSuccess if it's provided (meaning it came from an appointment)
+        if (onRecordSuccess && appointmentData?._id) {
+          onRecordSuccess(appointmentData._id); // Pass the original appointment ID
+        }
       }
 
-      onCancel();
+      onCancel(); // Close the form after successful submission
     } catch (err) {
       console.error("Error saving medical record:", err);
       setError(err.response?.data?.message || "Failed to save record");
@@ -127,15 +239,21 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-8 p-6 bg-gray-50 rounded-xl shadow-lg"
+    >
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4"
+          role="alert"
+        >
           {error}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Patient Information */}
+        {/* Patient Information Section */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             <FaUser className="text-indigo-600" />
@@ -160,41 +278,115 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label
-                  htmlFor="patientType"
+                  htmlFor="species"
                   className="block text-lg font-medium text-gray-700 mb-1"
                 >
-                  Patient Type *
+                  Species *
                 </label>
-
-                <input
-                  id="patientType"
-                  name="patientType"
-                  value={formData.patientType}
-                  onChange={handleChange}
-                  required
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-                />
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <FaPaw className="text-gray-400" />
+                  </span>
+                  <input
+                    type="text"
+                    id="species"
+                    name="species"
+                    value={formData.species}
+                    onChange={handleChange}
+                    required
+                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                    placeholder="e.g., Dog, Cat, Bird"
+                  />
+                </div>
               </div>
 
               <div>
                 <label
-                  htmlFor="patientId"
+                  htmlFor="age"
                   className="block text-lg font-medium text-gray-700 mb-1"
                 >
-                  Mircochip No
+                  Age *
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <FaBirthdayCake className="text-gray-400" />
+                  </span>
+                  <input
+                    type="text"
+                    id="age"
+                    name="age"
+                    value={formData.age}
+                    onChange={handleChange}
+                    required
+                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                    placeholder="e.g., 5 years, 3 months"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="breed"
+                  className="block text-lg font-medium text-gray-700 mb-1"
+                >
+                  Breed
                 </label>
                 <input
                   type="text"
-                  id="patientId"
-                  name="patientId"
-                  value={formData.patientId}
+                  id="breed"
+                  name="breed"
+                  value={formData.breed}
                   onChange={handleChange}
                   className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
                 />
               </div>
+              <div>
+                <label
+                  htmlFor="sex"
+                  className="block text-lg font-medium text-gray-700 mb-1"
+                >
+                  Sex
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <FaVenusMars className="text-gray-400" />
+                  </span>
+                  <select
+                    id="sex"
+                    name="sex"
+                    value={formData.sex}
+                    onChange={handleChange}
+                    className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg appearance-none"
+                  >
+                    <option value="">Select Sex</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Unknown">Unknown</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="petId"
+                className="block text-lg font-medium text-gray-700 mb-1"
+              >
+                Microchip No. / Pet ID
+              </label>
+              <input
+                type="text"
+                id="petId"
+                name="petId"
+                value={formData.petId}
+                onChange={handleChange}
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+              />
             </div>
 
             <div>
@@ -214,17 +406,69 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
                 className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
               />
             </div>
+            <div>
+              <label
+                htmlFor="ownerContact"
+                className="block text-lg font-medium text-gray-700 mb-1"
+              >
+                Owner Contact *
+              </label>
+              <input
+                type="text"
+                id="ownerContact"
+                name="ownerContact"
+                value={formData.ownerContact}
+                onChange={handleChange}
+                required
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="lastAppointment"
+                  className="block text-lg font-medium text-gray-700 mb-1"
+                >
+                  Last Appointment Date
+                </label>
+                <input
+                  type="date"
+                  id="lastAppointment"
+                  name="lastAppointment"
+                  value={formData.lastAppointment}
+                  onChange={handleChange}
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="nextAppointment"
+                  className="block text-lg font-medium text-gray-700 mb-1"
+                >
+                  Next Appointment Date
+                </label>
+                <input
+                  type="date"
+                  id="nextAppointment"
+                  name="nextAppointment"
+                  value={formData.nextAppointment}
+                  onChange={handleChange}
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Visit Information */}
+        {/* Visit Information Section */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
           <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             <FaCalendarAlt className="text-indigo-600" />
             Visit Information
           </h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label
                   htmlFor="date"
@@ -248,7 +492,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
                   htmlFor="vetenarian"
                   className="block text-lg font-medium text-gray-700 mb-1"
                 >
-                  vetenarian *
+                  Veterinarian *
                 </label>
                 <input
                   type="text"
@@ -310,7 +554,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
         {medicationsInputs.map((med, index) => (
           <div
             key={index}
-            className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end mb-4"
+            className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end mb-4 p-4 border border-gray-100 rounded-lg bg-gray-50"
           >
             <div>
               <label
@@ -335,7 +579,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
                 htmlFor={`medDosage${index}`}
                 className="block text-lg font-medium text-gray-700 mb-1"
               >
-                Dosage *
+                Dosage
               </label>
               <input
                 type="text"
@@ -343,7 +587,6 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
                 name="dosage"
                 value={med.dosage}
                 onChange={(e) => handleMedicationInputChange(index, e)}
-                required
                 className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
               />
             </div>
@@ -407,7 +650,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
               <button
                 type="button"
                 onClick={() => removeMedicationsInput(index)}
-                className="self-start text-red-600 hover:text-red-800 text-xl"
+                className="self-start text-red-600 hover:text-red-800 text-xl p-2 rounded-full hover:bg-red-50 transition-colors duration-200"
                 title="Remove medication"
                 aria-label="Remove medication"
               >
@@ -420,7 +663,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
         <button
           type="button"
           onClick={addMedicationsInput}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
         >
           <FaPlus /> Add Medication
         </button>
@@ -468,7 +711,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+          className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors duration-200"
           disabled={isSubmitting}
         >
           Cancel
@@ -476,7 +719,7 @@ const MedicalRecordForm = ({ record, setRecords, onCancel }) => {
 
         <button
           type="submit"
-          className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold"
+          className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold transition-colors duration-200"
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving..." : "Save Record"}

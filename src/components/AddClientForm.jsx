@@ -1,11 +1,11 @@
 import React, { useState } from "react";
-import axios from "axios"; // Assuming axios is used in clientService
+
 import { createClient } from "../api/clientService"; // Adjusted path based on typical project structure
 
 const AddClientForm = ({ setClients, onCancel }) => {
   const [formData, setFormData] = useState({
-    owner1: "",
-    owner2: "",
+    owner: "",
+
     address: "",
     contact: "",
     email: "",
@@ -16,6 +16,7 @@ const AddClientForm = ({ setClients, onCancel }) => {
       age: "",
       vaccinationStatus: "",
       notes: "",
+      petId: "",
     },
   });
 
@@ -81,21 +82,14 @@ const AddClientForm = ({ setClients, onCancel }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
             type="text"
-            name="owner1"
-            placeholder="Owner 1 Name"
-            value={formData.owner1}
+            name="owner"
+            placeholder="Owner  Name"
+            value={formData.owner}
             onChange={handleChange}
             required
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-200"
           />
-          <input
-            type="text"
-            name="owner2"
-            placeholder="Owner 2 Name (Optional)"
-            value={formData.owner2}
-            onChange={handleChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-200"
-          />
+
           <input
             type="text"
             name="address"
@@ -168,6 +162,14 @@ const AddClientForm = ({ setClients, onCancel }) => {
             name="vaccinationStatus"
             placeholder="Vaccination Status"
             value={formData.additionalInfo.vaccinationStatus}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-200"
+          />
+          <input
+            type="text"
+            name="PetId"
+            placeholder="PetId"
+            value={formData.petId}
             onChange={handleChange}
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-200"
           />
