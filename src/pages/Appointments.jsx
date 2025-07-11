@@ -1,579 +1,459 @@
-import { useState, useEffect } from "react";
-import AppointmentForm from "../components/AppointmentForm";
-import MedicalRecordForm from "../components/MedicalRecordForm"; // Import MedicalRecordForm
+import React, { useState, useEffect } from "react";
+import { medicalRecordService } from "../api/medicalRecordService";
+import { patientService } from "../api/patientService";
+import { vaccinationService } from "../api/vaccinationService";
+import { format, parseISO, isAfter, isBefore } from "date-fns";
 import {
-  getAppointments,
-  createAppointment,
-  updateAppointment,
-  deleteAppointment,
-} from "../api/appointmentService";
-import { getMedicalRecords } from "../api/medicalRecordService"; // Import medical record service
-import {
-  FaCheckCircle,
-  FaTimesCircle,
-  FaPlus,
-  FaChevronLeft,
   FaCalendarAlt,
-  FaUser,
-  FaPaw,
-  FaPhoneAlt,
-  FaStickyNote,
-  FaUserMd,
-  FaClock,
-  FaCheck,
-  FaSearch,
-  FaGavel, // Added FaGavel for medical records/follow-up
+  FaFileMedicalAlt,
+  FaNotesMedical,
+  FaSyringe,
 } from "react-icons/fa";
+import { GiHealthNormal } from "react-icons/gi";
 
-const Appointments = () => {
-  const [appointments, setAppointments] = useState([]);
-  const [medicalRecords, setMedicalRecords] = useState([]); // New state for medical records
-  const [activeTab, setActiveTab] = useState("pending");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false); // State for AppointmentForm
-  const [showMedicalRecordForm, setShowMedicalRecordForm] = useState(false); // State for MedicalRecordForm
-  const [appointmentToConvert, setAppointmentToConvert] = useState(null); // Stores appointment data to pass to MedicalRecordForm
+const AppointmentsPage = () => {
+  const [activeTab, setActiveTab] = useState("upcoming");
+  const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+  const [pastVisits, setPastVisits] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [expandedVisit, setExpandedVisit] = useState(null);
 
-  // Callback function when a new appointment is created
-  const handleAppointmentCreated = (newAppointment) => {
-    console.log("New appointment created:", newAppointment);
-    // After creation, re-fetch appointments to ensure the list is up-to-date
-    // or optimistically add the new appointment if the backend returns it
-    setLoading(true);
-    getAppointments()
-      .then((res) => {
-        setAppointments(res.data);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch appointments after creation", err);
-      })
-      .finally(() => setLoading(false));
-    setShowForm(false);
+  const fetchAllData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [records, vaccinations] = await Promise.all([
+        medicalRecordService.getAllMedicalRecords(),
+        vaccinationService.getAllVaccinations(),
+      ]);
+
+      const now = new Date();
+      const upcoming = [];
+      const past = [];
+
+      // Process medical records
+      for (const record of records) {
+        if (record.followUpDate) {
+          const appointmentDate = parseISO(record.followUpDate);
+          const patientData = await getPatientData(record.patient);
+
+          const appointment = {
+            type: "medical",
+            id: record._id,
+            date: appointmentDate,
+            patientName: patientData.name,
+            patientSpecies: patientData.species,
+            patientBreed: patientData.breed,
+            ownerName: patientData.ownerName,
+            reason: record.reason || "Follow-up",
+            veterinarian: record.veterinarian,
+            diagnosis: record.diagnosis,
+            treatment: record.treatment,
+            notes: record.notes,
+            weight: record.weight,
+            clinicalExamination: record.clinicalExamination,
+            medications: record.medications,
+          };
+
+          if (isAfter(appointmentDate, now)) {
+            upcoming.push(appointment);
+          } else {
+            past.push(appointment);
+          }
+        }
+      }
+
+      // Process vaccination records
+      for (const vaccine of vaccinations) {
+        const appointmentDate = parseISO(vaccine.dateAdministered);
+        const patientData = await getPatientData(vaccine.patient);
+
+        const appointment = {
+          type: "vaccination",
+          id: vaccine._id,
+          date: appointmentDate,
+          patientName: patientData.name,
+          patientSpecies: patientData.species,
+          patientBreed: patientData.breed,
+          ownerName: patientData.ownerName,
+          reason: `${vaccine.vaccineName} Vaccine`,
+          veterinarian: vaccine.administeringVeterinarian,
+          vaccineName: vaccine.vaccineName,
+          nextDueDate: vaccine.nextDueDate,
+          batchNumber: vaccine.batchNumber,
+          notes: vaccine.notes,
+        };
+
+        past.push(appointment);
+      }
+
+      upcoming.sort((a, b) => a.date - b.date);
+      past.sort((a, b) => b.date - a.date);
+
+      setUpcomingAppointments(upcoming);
+      setPastVisits(past);
+    } catch (err) {
+      setError("Failed to load appointments. Please try again.");
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Fetch appointments and medical records on component mount
+  const getPatientData = async (patientRef) => {
+    try {
+      if (!patientRef)
+        return {
+          name: "Unknown Patient",
+          species: "Unknown",
+          breed: "Unknown",
+          ownerName: "Unknown Owner",
+        };
+
+      const patientId =
+        typeof patientRef === "string" ? patientRef : patientRef._id;
+      const patient = await patientService.getPatientById(patientId);
+
+      return {
+        name: patient?.name || "Unknown Patient",
+        species: patient?.species || "Unknown",
+        breed: patient?.breed || "Unknown",
+        ownerName: patient?.ownerName || "Unknown Owner",
+      };
+    } catch (error) {
+      console.error("Error fetching patient:", error);
+      return {
+        name: "Unknown Patient",
+        species: "Unknown",
+        breed: "Unknown",
+        ownerName: "Unknown Owner",
+      };
+    }
+  };
+
+  const toggleVisitExpansion = (id) => {
+    setExpandedVisit(expandedVisit === id ? null : id);
+  };
+
   useEffect(() => {
-    setLoading(true);
-    Promise.all([getAppointments(), getMedicalRecords()]) // Fetch both
-      .then(([appointmentsRes, medicalRecordsRes]) => {
-        setAppointments(appointmentsRes.data);
-        setMedicalRecords(medicalRecordsRes.data);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch data", err);
-      })
-      .finally(() => setLoading(false));
+    fetchAllData();
   }, []);
 
-  // Toggle visibility of the appointment form
-  const toggleForm = () => {
-    setShowForm((prev) => !prev);
-    setShowMedicalRecordForm(false); // Hide MedicalRecordForm if AppointmentForm is toggled
-    setAppointmentToConvert(null); // Clear selected appointment
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
 
-  // Handle marking an appointment as complete and opening MedicalRecordForm
-  const handleComplete = (id) => {
-    const apptToConvert = appointments.find((a) => a._id === id);
-    if (!apptToConvert) return;
-    setAppointmentToConvert(apptToConvert);
-    setShowMedicalRecordForm(true);
-    setShowForm(false); // Hide the new appointment form if open
-  };
-
-  // Handle cancelling (deleting) an appointment
-  const handleCancel = async (id) => {
-    try {
-      await deleteAppointment(id);
-      setAppointments((prev) => prev.filter((a) => a._id !== id));
-    } catch (error) {
-      console.error("Error deleting appointment:", error);
-    }
-  };
-
-  // Helper function to create a Date object from date and time strings for appointments
-  const getAppointmentDateTime = (appt) => {
-    // Assuming appt.date is 'YYYY-MM-DD' and appt.time is 'HH:MM'
-    return new Date(`${appt.date}T${appt.time}`);
-  };
-
-  // Helper function to create a Date object from followUpDate string for medical records
-  const getFollowUpDateTime = (record) => {
-    // Assuming record.followUpDate is 'YYYY-MM-DD' or a full ISO string
-    return record.followUpDate ? new Date(record.followUpDate) : null;
-  };
-
-  // Filter appointments based on search term
-  const filteredAppointments = appointments
-    .filter(
-      (appt) =>
-        appt.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appt.petName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .map((appt) => ({
-      ...appt,
-      dateTime: getAppointmentDateTime(appt), // Add a dateTime object for sorting
-    }));
-
-  // Filter and prepare medical records for the 'Followup' tab
-  const filteredFollowUpRecords = medicalRecords
-    .filter((record) => {
-      const followUpDate = getFollowUpDateTime(record);
-      // Only include records with a followUpDate that is today or in the future
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Normalize today to start of day
-      return (
-        followUpDate &&
-        followUpDate >= today &&
-        (record.patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          record.patient.species
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()))
-      ); // Search filter for followup
-    })
-    .map((record) => ({
-      ...record,
-      dateTime: getFollowUpDateTime(record), // Add dateTime for sorting
-    }));
-
-  // Sort all filtered appointments chronologically by date and then by time
-  const sortedAppointments = [...filteredAppointments].sort(
-    (a, b) => a.dateTime.getTime() - b.dateTime.getTime() // Compare timestamps for accurate sorting
-  );
-
-  // Sort follow-up records chronologically by followUpDate
-  const sortedFollowUpRecords = [...filteredFollowUpRecords].sort(
-    (a, b) => a.dateTime.getTime() - b.dateTime.getTime()
-  );
-
-  // Filter and sort pending appointments (from nearest to farthest)
-  const pendingAppointments = sortedAppointments.filter((a) => !a.completed);
-
-  // Filter and sort completed appointments (from most recent to oldest)
-  const completedAppointments = [...sortedAppointments] // Create a copy to avoid modifying sortedAppointments
-    .filter((a) => a.completed)
-    .reverse(); // Reverse to get most recent first
-
-  // Tailwind CSS classes for priority badges
-  const priorityBadgeClasses = {
-    Urgent: "bg-red-100 text-red-800",
-    High: "bg-orange-100 text-orange-800",
-    Normal: "bg-blue-100 text-blue-800",
-    Low: "bg-gray-100 text-gray-800",
-  };
-
-  // Format date to "Today", "Tomorrow", or "Weekday, Month Day"
-  const formatDate = (dateString) => {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const date = new Date(dateString);
-    const options = { weekday: "long", month: "long", day: "numeric" };
-
-    // Check if date is today
-    if (date.toDateString() === today.toDateString()) {
-      return "Today";
-    }
-    // Check if date is tomorrow
-    if (date.toDateString() === tomorrow.toDateString()) {
-      return "Tomorrow";
-    }
-
-    return date.toLocaleDateString(undefined, options);
-  };
-
-  // Format time to AM/PM format (e.g., 9:00 AM)
-  const formatTime = (timeString) => {
-    // Check if timeString is a full date string (like from followUpDate)
-    if (timeString && timeString.includes("T")) {
-      const date = new Date(timeString);
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    }
-    // Otherwise, assume it's "HH:MM"
-    const [hours, minutes] = timeString.split(":");
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const hour12 = hour % 12 || 12; // Convert 24-hour to 12-hour format
-    return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  // Group appointments by their date string (YYYY-MM-DD)
-  const groupAppointmentsByDate = (appointmentsToGroup) => {
-    const grouped = {};
-    appointmentsToGroup.forEach((appt) => {
-      const dateKey = appt.date; // Use the YYYY-MM-DD date string as the key
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
-      }
-      grouped[dateKey].push(appt);
-    });
-    return grouped;
-  };
-
-  // Group medical records by their followUpDate string (YYYY-MM-DD)
-  const groupFollowUpRecordsByDate = (recordsToGroup) => {
-    const grouped = {};
-    recordsToGroup.forEach((record) => {
-      if (record.followUpDate) {
-        const dateKey = new Date(record.followUpDate)
-          .toISOString()
-          .split("T")[0]; // Use YYYY-MM-DD
-        if (!grouped[dateKey]) {
-          grouped[dateKey] = [];
-        }
-        grouped[dateKey].push(record);
-      }
-    });
-    return grouped;
-  };
-
-  const groupedPendingAppointments =
-    groupAppointmentsByDate(pendingAppointments);
-  const groupedCompletedAppointments = groupAppointmentsByDate(
-    completedAppointments
-  );
-  const groupedFollowUpRecords = groupFollowUpRecordsByDate(
-    sortedFollowUpRecords
-  );
-
-  // Function to get relative date label (Today, Tomorrow, or formatted date)
-  const getRelativeDateLabel = (dateString) => {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const date = new Date(dateString);
-
-    if (date.toDateString() === today.toDateString()) {
-      return "Today";
-    } else if (date.toDateString() === tomorrow.toDateString()) {
-      return "Tomorrow";
-    } else {
-      return formatDate(dateString);
-    }
-  };
-
-  // Get and sort the date keys for rendering
-  const getSortedDateKeys = (groupedItems, isCompletedTab) => {
-    const dates = Object.keys(groupedItems);
-    // Sort date strings chronologically for pending/followup, reverse for completed
-    if (isCompletedTab) {
-      return dates.sort().reverse();
-    }
-    return dates.sort();
-  };
-
-  const currentGroupedAppointments =
-    activeTab === "pending"
-      ? groupedPendingAppointments
-      : activeTab === "completed"
-      ? groupedCompletedAppointments
-      : groupedFollowUpRecords; // For 'followup' tab
-  const sortedDateKeys = getSortedDateKeys(
-    currentGroupedAppointments,
-    activeTab === "completed"
-  );
+  if (error) {
+    return (
+      <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-lg border border-gray-100 text-center">
+        <p className="text-red-600 mb-4 font-medium">{error}</p>
+        <button
+          onClick={fetchAllData}
+          className="px-6 py-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 shadow-sm"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto min-h-screen">
-      {/* Header Section */}
-      <header className="mb-8">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            {(showForm || showMedicalRecordForm) && ( // Show back button for both forms
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setShowMedicalRecordForm(false);
-                  setAppointmentToConvert(null);
-                }}
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
-              >
-                <FaChevronLeft className="text-gray-600 text-lg" />
-              </button>
-            )}
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-              {showForm
-                ? "New Appointment"
-                : showMedicalRecordForm
-                ? "New Medical Record"
-                : "Appointment Management"}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-white min-h-screen">
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+            <FaCalendarAlt className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Appointments Management
             </h1>
+            <p className="text-gray-500 mt-1">
+              {activeTab === "upcoming"
+                ? "Upcoming appointments"
+                : "Patient visit history"}
+            </p>
           </div>
+        </div>
+      </div>
 
-          {!showForm &&
-            !showMedicalRecordForm && ( // Only show search and new appointment button when no form is active
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaSearch className="text-gray-400 text-lg" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search appointments..."
-                    className="block w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <button
-                  onClick={toggleForm}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition"
-                >
-                  <FaPlus />
-                  <span className="hidden sm:inline">New Appointment</span>
-                </button>
-              </div>
-            )}
-        </div>
-      </header>
+      <div className="flex border-b border-gray-200 mb-6">
+        <button
+          onClick={() => setActiveTab("upcoming")}
+          className={`px-6 py-3 font-medium text-sm flex items-center gap-2 ${
+            activeTab === "upcoming"
+              ? "text-orange-600 border-b-2 border-orange-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <FaCalendarAlt />
+          Upcoming ({upcomingAppointments.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("past")}
+          className={`px-6 py-3 font-medium text-sm flex items-center gap-2 ${
+            activeTab === "past"
+              ? "text-orange-600 border-b-2 border-orange-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <FaFileMedicalAlt />
+          Past Visits ({pastVisits.length})
+        </button>
+      </div>
 
-      {showMedicalRecordForm ? (
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <MedicalRecordForm
-            appointmentData={appointmentToConvert}
-            setRecords={setMedicalRecords} // Pass setRecords to update medical records list
-            onCancel={() => {
-              setShowMedicalRecordForm(false);
-              setAppointmentToConvert(null);
-            }}
-            onRecordSuccess={(completedAppointmentId) => {
-              // Mark the original appointment as completed after medical record is saved
-              const apptToUpdate = appointments.find(
-                (a) => a._id === completedAppointmentId
-              );
-              if (apptToUpdate) {
-                const updatedAppt = { ...apptToUpdate, completed: true };
-                updateAppointment(completedAppointmentId, updatedAppt)
-                  .then(() => {
-                    setAppointments((prev) =>
-                      prev.map((a) =>
-                        a._id === completedAppointmentId ? updatedAppt : a
-                      )
-                    );
-                  })
-                  .catch((err) =>
-                    console.error("Failed to update appointment status:", err)
-                  );
-              }
-              setShowMedicalRecordForm(false);
-              setAppointmentToConvert(null);
-            }}
-          />
-        </div>
-      ) : showForm ? (
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <AppointmentForm
-            onSuccess={handleAppointmentCreated}
-            onCancel={() => setShowForm(false)}
-          />
-        </div>
-      ) : loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {/* Tabs Navigation */}
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab("pending")}
-              className={`px-4 py-3 font-medium text-sm sm:text-base flex items-center gap-2 relative ${
-                activeTab === "pending"
-                  ? "text-indigo-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <FaClock className="text-current" />
-              Upcoming ({pendingAppointments.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("completed")}
-              className={`px-4 py-3 font-medium text-sm sm:text-base flex items-center gap-2 relative ${
-                activeTab === "completed"
-                  ? "text-indigo-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <FaCheck className="text-current" />
-              Completed ({completedAppointments.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("followup")}
-              className={`px-4 py-3 font-medium text-sm sm:text-base flex items-center gap-2 relative ${
-                activeTab === "followup"
-                  ? "text-indigo-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-indigo-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <FaGavel className="text-current" /> {/* Icon for Followup */}
-              Followup ({sortedFollowUpRecords.length})
-            </button>
-          </div>
-
-          {/* Content based on active tab */}
-          <div className="space-y-8">
-            {sortedDateKeys.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                No {activeTab} records found.
-              </div>
-            )}
-            {sortedDateKeys.map((date) => {
-              const dateItems = currentGroupedAppointments[date];
-              return (
-                <div key={date} className="space-y-4">
-                  <h2 className="text-xl font-semibold text-gray-700 sticky top-0 bg-white py-2 z-10">
-                    {getRelativeDateLabel(date)}
-                  </h2>
-                  <div className="grid grid-cols-1 gap-4">
-                    {dateItems.map((item) => (
-                      <div
-                        key={item._id}
-                        className={`bg-white rounded-lg shadow-sm overflow-hidden border-l-4 ${
-                          activeTab === "followup"
-                            ? "border-purple-500" // Distinct border for followup
-                            : item.completed
-                            ? "border-green-500"
-                            : item.priority === "Urgent"
-                            ? "border-red-500"
-                            : item.priority === "High"
-                            ? "border-orange-500"
-                            : "border-blue-500"
-                        }`}
+      {activeTab === "upcoming" ? (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+          {upcomingAppointments.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[
+                      "Patient",
+                      "Date & Time",
+                      "Purpose",
+                      "Owner",
+                      "Veterinarian",
+                      "Status",
+                    ].map((header) => (
+                      <th
+                        key={header}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        <div className="p-4 sm:p-6">
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                            {/* Main Info */}
-                            <div className="flex-1 space-y-3">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <h3 className="text-xl font-bold text-gray-800">
-                                  {activeTab === "followup"
-                                    ? item.patient.name // Pet Name for followup
-                                    : item.petName}
-                                  <span className="text-gray-500 font-normal ml-2">
-                                    (
-                                    {activeTab === "followup"
-                                      ? item.patient.species // Pet Type for followup
-                                      : item.petType}
-                                    {activeTab !== "followup" &&
-                                      item.petAge &&
-                                      `, ${item.petAge}`}
-                                    )
-                                  </span>
-                                </h3>
-                                {activeTab !== "followup" &&
-                                  !item.completed &&
-                                  item.priority && (
-                                    <span
-                                      className={`text-xs font-medium px-2 py-1 rounded-full ${
-                                        priorityBadgeClasses[item.priority]
-                                      }`}
-                                    >
-                                      {item.priority}
-                                    </span>
-                                  )}
-                                <div className="flex items-center gap-1 text-gray-600">
-                                  <FaCalendarAlt className="text-gray-400" />
-                                  <span>
-                                    {activeTab === "followup"
-                                      ? formatTime(item.followUpDate) // Use followUpDate for time
-                                      : formatTime(item.time)}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <FaUser className="text-gray-400" />
-                                  <span>
-                                    {activeTab === "followup"
-                                      ? item.patient.ownerName // Owner Name for followup
-                                      : item.clientName}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <FaPhoneAlt className="text-gray-400" />
-                                  <span>
-                                    {activeTab === "followup"
-                                      ? item.patient.ownerContact // Owner Contact for followup
-                                      : item.contactNumber}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-600">
-                                  <FaUserMd className="text-gray-400" />
-                                  <span>
-                                    {item.vetenarian || item.vetName}
-                                  </span>{" "}
-                                  {/* Vetenarian/Vet Name */}
-                                </div>
-                                {activeTab === "followup" && item.diagnosis && (
-                                  <div className="flex items-start gap-2 text-gray-600 col-span-full">
-                                    <FaStickyNote className="text-gray-400 mt-1" />
-                                    <span>Diagnosis: {item.diagnosis}</span>
-                                  </div>
-                                )}
-                                {activeTab === "followup" && item.notes && (
-                                  <div className="flex items-start gap-2 text-gray-600 col-span-full">
-                                    <FaStickyNote className="text-gray-400 mt-1" />
-                                    <span>Notes: {item.notes}</span>
-                                  </div>
-                                )}
-                                {activeTab !== "followup" && item.reason && (
-                                  <div className="flex items-start gap-2 text-gray-600 col-span-full">
-                                    <FaStickyNote className="text-gray-400 mt-1" />
-                                    <span>Reason: {item.reason}</span>
-                                  </div>
-                                )}
-                              </div>
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {upcomingAppointments.map((appointment) => (
+                    <tr key={appointment.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                            <span className="text-orange-600">
+                              {appointment.patientSpecies === "Canine"
+                                ? "🐶"
+                                : "🐱"}
+                            </span>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {appointment.patientName}
                             </div>
-
-                            {/* Actions (only for appointments) */}
-                            {activeTab !== "followup" &&
-                              (!item.completed ? (
-                                <div className="flex sm:flex-col gap-2">
-                                  <button
-                                    onClick={() => handleComplete(item._id)}
-                                    className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition"
-                                  >
-                                    <FaCheckCircle />
-                                    <span className="hidden sm:inline">
-                                      Complete
-                                    </span>
-                                  </button>
-                                  <button
-                                    onClick={() => handleCancel(item._id)}
-                                    className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition"
-                                  >
-                                    <FaTimesCircle />
-                                    <span className="hidden sm:inline">
-                                      Cancel
-                                    </span>
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2 text-green-600">
-                                  <FaCheckCircle />
-                                  <span>Completed</span>
-                                </div>
-                              ))}
+                            <div className="text-sm text-gray-500">
+                              {appointment.patientBreed}
+                            </div>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {format(appointment.date, "MMM d, yyyy")}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {format(appointment.date, "h:mm a")}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {appointment.reason}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {appointment.ownerName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {appointment.veterinarian || "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Confirmed
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              <FaCalendarAlt className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-700">
+                No upcoming appointments
+              </h3>
+              <p className="mt-1 text-gray-500">All clear for now!</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {pastVisits.length > 0 ? (
+            pastVisits.map((visit) => (
+              <div
+                key={visit.id}
+                className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100"
+              >
+                <div
+                  className={`p-4 cursor-pointer ${
+                    expandedVisit === visit.id
+                      ? "bg-gray-50"
+                      : "hover:bg-gray-50"
+                  }`}
+                  onClick={() => toggleVisitExpansion(visit.id)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`p-3 rounded-lg ${
+                          visit.type === "medical"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {visit.type === "medical" ? (
+                          <FaNotesMedical />
+                        ) : (
+                          <FaSyringe />
+                        )}
                       </div>
-                    ))}
+                      <div>
+                        <h3 className="font-medium">
+                          {visit.patientName} • {visit.patientBreed}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {format(visit.date, "MMMM d, yyyy 'at' h:mm a")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          visit.type === "medical"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-green-100 text-green-800"
+                        }`}
+                      >
+                        {visit.type === "medical"
+                          ? "Medical Visit"
+                          : "Vaccination"}
+                      </span>
+                      <svg
+                        className={`h-5 w-5 text-gray-400 transform transition-transform ${
+                          expandedVisit === visit.id ? "rotate-180" : ""
+                        }`}
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {expandedVisit === visit.id && (
+                  <div className="border-t border-gray-200 p-4">
+                    {visit.type === "medical" ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                              <GiHealthNormal /> Diagnosis
+                            </h4>
+                            <p className="mt-1 text-sm">
+                              {visit.diagnosis?.join(", ") ||
+                                "No diagnosis recorded"}
+                            </p>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                              <FaNotesMedical /> Treatment
+                            </h4>
+                            <p className="mt-1 text-sm">
+                              {visit.treatment?.join(", ") ||
+                                "No treatment recorded"}
+                            </p>
+                          </div>
+                        </div>
+                        {visit.medications?.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">
+                              Medications Prescribed
+                            </h4>
+                            <ul className="mt-1 space-y-1">
+                              {visit.medications.map((med, idx) => (
+                                <li key={idx} className="text-sm">
+                                  <span className="font-medium">
+                                    {med.name}
+                                  </span>{" "}
+                                  - {med.dosage} ({med.frequency})
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                              <FaSyringe /> Vaccine
+                            </h4>
+                            <p className="mt-1 text-sm">{visit.vaccineName}</p>
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                              <FaCalendarAlt /> Next Due
+                            </h4>
+                            <p className="mt-1 text-sm">
+                              {format(
+                                parseISO(visit.nextDueDate),
+                                "MMMM d, yyyy"
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        {visit.notes && (
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-500">
+                              Notes
+                            </h4>
+                            <p className="mt-1 text-sm whitespace-pre-line">
+                              {visit.notes}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center border border-gray-100">
+              <FaFileMedicalAlt className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-700">
+                No past visits found
+              </h3>
+              <p className="mt-1 text-gray-500">
+                Patient visit history will appear here
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 };
 
-export default Appointments;
+export default AppointmentsPage;

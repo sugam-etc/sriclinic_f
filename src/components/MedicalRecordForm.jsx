@@ -8,7 +8,13 @@ import {
   FaPaw, // Icon for species/breed
   FaBirthdayCake, // Icon for age
   FaVenusMars, // Icon for sex
+  FaClipboardList, // Icon for examination
+  FaHistory, // New icon for previous history
+  FaHeartbeat, // Icon for vitals
+  FaFileImage, // Icon for diagnosis imaging
+  FaLightbulb, // Icon for advice
 } from "react-icons/fa";
+
 import {
   createMedicalRecord,
   updateMedicalRecord,
@@ -28,10 +34,10 @@ const MedicalRecordForm = ({
     const defaultFormData = {
       date: new Date().toISOString().split("T")[0],
       vetenarian: "Dr. Smith", // Default veterinarian
-      diagnosis: "",
-      treatment: "",
       notes: "",
       followUpDate: "", // Can be null or empty string
+      reason: "",
+      advice: "",
 
       // Patient fields (nested in 'patient' object for backend)
       patientName: "", // Maps to patient.name
@@ -44,6 +50,15 @@ const MedicalRecordForm = ({
       ownerContact: "", // Maps to patient.ownerContact
       lastAppointment: "", // Maps to patient.lastAppointment
       nextAppointment: "", // Maps to patient.nextAppointment
+
+      // Array fields - these will be managed by separate states and merged on submit
+      examination: [],
+      previousHistory: [],
+      vitals: [],
+      diagnosisImaging: [],
+      diagnosis: [], // Changed to array
+      treatment: [], // Changed to array
+      medications: [], // Ensure this is initialized as an empty array
     };
 
     // If 'record' is provided (for editing existing medical record)
@@ -54,12 +69,13 @@ const MedicalRecordForm = ({
           ? new Date(record.date).toISOString().split("T")[0]
           : defaultFormData.date,
         vetenarian: record.vetenarian,
-        diagnosis: record.diagnosis,
-        treatment: record.treatment,
         notes: record.notes,
         followUpDate: record.followUpDate
-          ? new Date(record.followUpDate).toISOString().slice(0, 16)
+          ? new Date(record.followUpDate).toISOString().slice(0, 16) // Use slice for datetime-local
           : "",
+        reason: record.reason || "",
+        advice: record.advice || "",
+
         // Extract patient details if available and populated
         patientName: record.patient?.name || "",
         species: record.patient?.species || "",
@@ -75,6 +91,7 @@ const MedicalRecordForm = ({
         nextAppointment: record.patient?.nextAppointment
           ? new Date(record.patient.nextAppointment).toISOString().split("T")[0]
           : "",
+        // Array fields will be populated by dedicated useEffects below based on record prop
       };
     }
 
@@ -94,6 +111,7 @@ const MedicalRecordForm = ({
         notes: `Appointment Reason: ${appointmentData.reason || ""}`, // Pre-fill notes with appointment reason
         lastAppointment:
           new Date(appointmentData.date).toISOString().split("T")[0] || "", // Set last appointment to the current appointment date
+        // No array fields from appointment, so they remain default empty arrays
       };
     }
 
@@ -101,24 +119,116 @@ const MedicalRecordForm = ({
     return defaultFormData;
   });
 
+  // State for medications (nested array of objects)
   const [medicationsInputs, setMedicationsInputs] = useState(
-    record?.medications?.length
+    Array.isArray(record?.medications)
       ? record.medications
-      : [{ name: "", dosage: "", frequency: "", duration: "", quantity: 1 }]
+      : [{ name: "", dosage: "", frequency: "", duration: "", quantity: "1" }] // quantity is now a string
   );
+
+  // State for examination findings (array of strings)
+  const [examinationInputs, setExaminationInputs] = useState(
+    Array.isArray(record?.examination) ? record.examination : []
+  );
+  const [currentExaminationInput, setCurrentExaminationInput] = useState("");
+
+  // State for previous history findings (array of strings)
+  const [previousHistoryInputs, setPreviousHistoryInputs] = useState(
+    Array.isArray(record?.previousHistory) ? record.previousHistory : []
+  );
+  const [currentPreviousHistoryInput, setCurrentPreviousHistoryInput] =
+    useState("");
+
+  // State for vitals (array of strings)
+  const [vitalsInputs, setVitalsInputs] = useState(
+    Array.isArray(record?.vitals) ? record.vitals : []
+  );
+  const [currentVitalsInput, setCurrentVitalsInput] = useState("");
+
+  // State for diagnosis imaging (array of strings)
+  const [diagnosisImagingInputs, setDiagnosisImagingInputs] = useState(
+    Array.isArray(record?.diagnosisImaging) ? record.diagnosisImaging : []
+  );
+  const [currentDiagnosisImagingInput, setCurrentDiagnosisImagingInput] =
+    useState("");
+
+  // State for diagnosis (array of strings) - **FIXED INITIALIZATION**
+  const [diagnosisInputs, setDiagnosisInputs] = useState(
+    Array.isArray(record?.diagnosis)
+      ? record.diagnosis
+      : record?.diagnosis // If it's a string from old data
+      ? [record.diagnosis] // Wrap it in an array
+      : [] // Otherwise, empty array
+  );
+  const [currentDiagnosisInput, setCurrentDiagnosisInput] = useState("");
+
+  // State for treatment (array of strings) - **FIXED INITIALIZATION**
+  const [treatmentInputs, setTreatmentInputs] = useState(
+    Array.isArray(record?.treatment)
+      ? record.treatment
+      : record?.treatment // If it's a string from old data
+      ? [record.treatment] // Wrap it in an array
+      : [] // Otherwise, empty array
+  );
+  const [currentTreatmentInput, setCurrentTreatmentInput] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // Update formData.medications when medicationsInputs changes
+  // --- useEffects to synchronize local array states with 'record' prop changes ---
   useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      medications: medicationsInputs,
-    }));
-  }, [medicationsInputs]);
+    setMedicationsInputs(
+      Array.isArray(record?.medications)
+        ? record.medications
+        : [{ name: "", dosage: "", frequency: "", duration: "", quantity: "1" }]
+    );
+  }, [record?.medications]);
 
-  // Handle changes for main form fields
+  useEffect(() => {
+    setExaminationInputs(
+      Array.isArray(record?.examination) ? record.examination : []
+    );
+  }, [record?.examination]);
+
+  useEffect(() => {
+    setPreviousHistoryInputs(
+      Array.isArray(record?.previousHistory) ? record.previousHistory : []
+    );
+  }, [record?.previousHistory]);
+
+  useEffect(() => {
+    setVitalsInputs(Array.isArray(record?.vitals) ? record.vitals : []);
+  }, [record?.vitals]);
+
+  useEffect(() => {
+    setDiagnosisImagingInputs(
+      Array.isArray(record?.diagnosisImaging) ? record.diagnosisImaging : []
+    );
+  }, [record?.diagnosisImaging]);
+
+  useEffect(() => {
+    setDiagnosisInputs(
+      Array.isArray(record?.diagnosis)
+        ? record.diagnosis
+        : record?.diagnosis
+        ? [record.diagnosis]
+        : []
+    );
+  }, [record?.diagnosis]);
+
+  useEffect(() => {
+    setTreatmentInputs(
+      Array.isArray(record?.treatment)
+        ? record.treatment
+        : record?.treatment
+        ? [record.treatment]
+        : []
+    );
+  }, [record?.treatment]);
+
+  // --- End of useEffects for synchronization ---
+
+  // Handle changes for main form fields (patient info, date, vetenarian, notes, followUpDate, reason, advice)
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -141,7 +251,7 @@ const MedicalRecordForm = ({
   const addMedicationsInput = () => {
     setMedicationsInputs((prev) => [
       ...prev,
-      { name: "", dosage: "", frequency: "", duration: "", quantity: 1 },
+      { name: "", dosage: "", frequency: "", duration: "", quantity: "1" }, // quantity is now a string
     ]);
   };
 
@@ -150,12 +260,87 @@ const MedicalRecordForm = ({
     setMedicationsInputs((prev) => {
       const newInputs = [...prev];
       newInputs.splice(index, 1);
-      // Ensure there's always at least one medication input row
+      // Ensure there's always at least one medication input row if no initial data
       return newInputs.length
         ? newInputs
-        : [{ name: "", dosage: "", frequency: "", duration: "", quantity: 1 }];
+        : [
+            {
+              name: "",
+              dosage: "",
+              frequency: "",
+              duration: "",
+              quantity: "1",
+            },
+          ];
     });
   };
+
+  // Generic handlers for array string fields (examination, previousHistory, vitals, diagnosisImaging, diagnosis, treatment)
+  const createArrayInputHandlers = (setter, currentInputSetter) => {
+    const handleInputChange = (e) => {
+      currentInputSetter(e.target.value);
+    };
+
+    const addInput = (currentInputValue) => {
+      if (currentInputValue.trim()) {
+        setter((prev) => [...prev, currentInputValue.trim()]);
+        currentInputSetter(""); // Clear the input field
+      }
+    };
+
+    const removeInput = (index) => {
+      setter((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    return { handleInputChange, addInput, removeInput };
+  };
+
+  const {
+    handleInputChange: handleCurrentExaminationInputChange,
+    addInput: addExaminationInput,
+    removeInput: removeExaminationInput,
+  } = createArrayInputHandlers(
+    setExaminationInputs,
+    setCurrentExaminationInput
+  );
+
+  const {
+    handleInputChange: handleCurrentPreviousHistoryInputChange,
+    addInput: addPreviousHistoryInput,
+    removeInput: removePreviousHistoryInput,
+  } = createArrayInputHandlers(
+    setPreviousHistoryInputs,
+    setCurrentPreviousHistoryInput
+  );
+
+  const {
+    handleInputChange: handleCurrentVitalsInputChange,
+    addInput: addVitalsInput,
+    removeInput: removeVitalsInput,
+  } = createArrayInputHandlers(setVitalsInputs, setCurrentVitalsInput);
+
+  const {
+    handleInputChange: handleCurrentDiagnosisImagingInputChange,
+    addInput: addDiagnosisImagingInput,
+    removeInput: removeDiagnosisImagingInput,
+  } = createArrayInputHandlers(
+    setDiagnosisImagingInputs,
+    setCurrentDiagnosisImagingInput
+  );
+
+  // Handlers for diagnosis array field
+  const {
+    handleInputChange: handleCurrentDiagnosisInput,
+    addInput: addDiagnosisInput,
+    removeInput: removeDiagnosisInput,
+  } = createArrayInputHandlers(setDiagnosisInputs, setCurrentDiagnosisInput);
+
+  // Handlers for treatment array field
+  const {
+    handleInputChange: handleCurrentTreatmentInput,
+    addInput: addTreatmentInput,
+    removeInput: removeTreatmentInput,
+  } = createArrayInputHandlers(setTreatmentInputs, setCurrentTreatmentInput);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -176,6 +361,7 @@ const MedicalRecordForm = ({
         // Only include optional date fields if they have values
         lastAppointment: formData.lastAppointment || undefined,
         nextAppointment: formData.nextAppointment || undefined,
+        // medicalHistory is handled by the backend, not directly set from this form
       };
 
       // Prepare the medical record data object for the backend
@@ -183,24 +369,31 @@ const MedicalRecordForm = ({
         patient: patientData, // Send the patient object
         vetenarian: formData.vetenarian,
         date: formData.date,
-        diagnosis: formData.diagnosis,
-        treatment: formData.treatment,
+        diagnosis: diagnosisInputs.filter((item) => item.trim()), // Now an array
+        reason: formData.reason,
+        treatment: treatmentInputs.filter((item) => item.trim()), // Now an array
         notes: formData.notes,
+        advice: formData.advice,
         // Only include optional date field if it has a value
         followUpDate: formData.followUpDate || undefined,
-        // Filter out empty medication entries and ensure quantity is a number
+        // Filter out empty medication entries and ensure quantity is a string
         medications: medicationsInputs
           .filter(
             (med) =>
               med.name.trim() &&
               med.frequency.trim() &&
               med.duration.trim() &&
-              Number(med.quantity) >= 1
-          ) // Ensure all required medication fields are present
+              med.quantity.trim() // Ensure quantity is a non-empty string
+          )
           .map((med) => ({
             ...med,
-            quantity: Number(med.quantity) || 1, // Ensure quantity is a number, default to 1
+            quantity: String(med.quantity), // Ensure quantity is a string
           })),
+        // Include array findings, filtering out empty strings
+        examination: examinationInputs.filter((item) => item.trim()),
+        previousHistory: previousHistoryInputs.filter((item) => item.trim()),
+        vitals: vitalsInputs.filter((item) => item.trim()),
+        diagnosisImaging: diagnosisImagingInputs.filter((item) => item.trim()),
       };
 
       console.log("Sending recordData for update/create:", recordData); // ADDED FOR DEBUGGING
@@ -506,39 +699,232 @@ const MedicalRecordForm = ({
               </div>
             </div>
 
+            {/* Diagnosis Section (now array) */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FaClipboardList className="text-indigo-600" />
+                Diagnosis *
+              </h3>
+              {diagnosisInputs.map((entry, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                >
+                  <span className="text-lg text-gray-800">{entry}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeDiagnosisInput(index)}
+                    className="text-red-600 hover:text-red-800 text-xl p-2 rounded-full hover:bg-red-50 transition-colors duration-200"
+                    title="Remove diagnosis entry"
+                    aria-label="Remove diagnosis entry"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Add diagnosis entry (e.g., 'Canine Parvovirus', 'Ear Infection')"
+                  value={currentDiagnosisInput}
+                  onChange={handleCurrentDiagnosisInput}
+                  className="block flex-grow px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  required={diagnosisInputs.length === 0} // Make required if no entries exist
+                />
+                <button
+                  type="button"
+                  onClick={() => addDiagnosisInput(currentDiagnosisInput)}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+                >
+                  <FaPlus /> Add Entry
+                </button>
+              </div>
+            </div>
+
+            {/* Reason for Visit */}
             <div>
               <label
-                htmlFor="diagnosis"
+                htmlFor="reason"
                 className="block text-lg font-medium text-gray-700 mb-1"
               >
-                Diagnosis *
+                Reason for Visit
               </label>
               <textarea
-                id="diagnosis"
-                name="diagnosis"
-                value={formData.diagnosis}
+                id="reason"
+                name="reason"
+                value={formData.reason}
                 onChange={handleChange}
                 rows={3}
-                required
                 className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="treatment"
-                className="block text-lg font-medium text-gray-700 mb-1"
-              >
+            {/* Treatment Section (now array) */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FaFileMedical className="text-indigo-600" />
                 Treatment
-              </label>
-              <textarea
-                id="treatment"
-                name="treatment"
-                value={formData.treatment}
-                onChange={handleChange}
-                rows={3}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-              />
+              </h3>
+              {treatmentInputs.map((entry, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                >
+                  <span className="text-lg text-gray-800">{entry}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeTreatmentInput(index)}
+                    className="text-red-600 hover:text-red-800 text-xl p-2 rounded-full hover:bg-red-50 transition-colors duration-200"
+                    title="Remove treatment entry"
+                    aria-label="Remove treatment entry"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Add treatment entry (e.g., 'Fluid therapy', 'Antibiotics')"
+                  value={currentTreatmentInput}
+                  onChange={handleCurrentTreatmentInput}
+                  className="block flex-grow px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => addTreatmentInput(currentTreatmentInput)}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+                >
+                  <FaPlus /> Add Entry
+                </button>
+              </div>
+            </div>
+
+            {/* Previous History Section */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FaHistory className="text-indigo-600" />
+                Previous History (as described by owner)
+              </h3>
+              {previousHistoryInputs.map((entry, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                >
+                  <span className="text-lg text-gray-800">{entry}</span>
+                  <button
+                    type="button"
+                    onClick={() => removePreviousHistoryInput(index)}
+                    className="text-red-600 hover:text-red-800 text-xl p-2 rounded-full hover:bg-red-50 transition-colors duration-200"
+                    title="Remove history entry"
+                    aria-label="Remove previous history entry"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Add previous history entry"
+                  value={currentPreviousHistoryInput}
+                  onChange={handleCurrentPreviousHistoryInputChange}
+                  className="block flex-grow px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    addPreviousHistoryInput(currentPreviousHistoryInput)
+                  }
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+                >
+                  <FaPlus /> Add Entry
+                </button>
+              </div>
+            </div>
+
+            {/* Vitals Section */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FaHeartbeat className="text-indigo-600" />
+                Vitals
+              </h3>
+              {vitalsInputs.map((entry, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                >
+                  <span className="text-lg text-gray-800">{entry}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeVitalsInput(index)}
+                    className="text-red-600 hover:text-red-800 text-xl p-2 rounded-full hover:bg-red-50 transition-colors duration-200"
+                    title="Remove vital entry"
+                    aria-label="Remove vital entry"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Add vital reading (e.g., 'Temp: 101.5F', 'HR: 120 bpm')"
+                  value={currentVitalsInput}
+                  onChange={handleCurrentVitalsInputChange}
+                  className="block flex-grow px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => addVitalsInput(currentVitalsInput)}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+                >
+                  <FaPlus /> Add Vital
+                </button>
+              </div>
+            </div>
+
+            {/* Diagnosis Imaging Section */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <FaFileImage className="text-indigo-600" />
+                Diagnosis Imaging
+              </h3>
+              {diagnosisImagingInputs.map((entry, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+                >
+                  <span className="text-lg text-gray-800">{entry}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeDiagnosisImagingInput(index)}
+                    className="text-red-600 hover:text-red-800 text-xl p-2 rounded-full hover:bg-red-50 transition-colors duration-200"
+                    title="Remove imaging entry"
+                    aria-label="Remove diagnosis imaging entry"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-4">
+                <input
+                  type="text"
+                  placeholder="Add imaging finding (e.g., 'X-ray: Lung mass', 'Ultrasound: Spleen normal')"
+                  value={currentDiagnosisImagingInput}
+                  onChange={handleCurrentDiagnosisImagingInputChange}
+                  className="block flex-grow px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    addDiagnosisImagingInput(currentDiagnosisImagingInput)
+                  }
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+                >
+                  <FaPlus /> Add Imaging
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -599,10 +985,9 @@ const MedicalRecordForm = ({
                 Quantity *
               </label>
               <input
-                type="number"
+                type="text" // Changed to text as per schema, though number input for UX is fine
                 id={`medQuantity${index}`}
                 name="quantity"
-                min="1"
                 value={med.quantity}
                 onChange={(e) => handleMedicationInputChange(index, e)}
                 required
@@ -669,7 +1054,50 @@ const MedicalRecordForm = ({
         </button>
       </div>
 
-      {/* Additional Notes, Follow-up */}
+      {/* Examination Section */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <FaClipboardList className="text-indigo-600" />
+          Examination Findings
+        </h2>
+        <div className="space-y-4">
+          {examinationInputs.map((finding, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
+            >
+              <span className="text-lg text-gray-800">{finding}</span>
+              <button
+                type="button"
+                onClick={() => removeExaminationInput(index)}
+                className="text-red-600 hover:text-red-800 text-xl p-2 rounded-full hover:bg-red-50 transition-colors duration-200"
+                title="Remove finding"
+                aria-label="Remove examination finding"
+              >
+                <FaTimes />
+              </button>
+            </div>
+          ))}
+          <div className="flex gap-4">
+            <input
+              type="text"
+              placeholder="Add new finding (e.g., 'Eyes clear', 'Heart murmur')"
+              value={currentExaminationInput}
+              onChange={handleCurrentExaminationInputChange}
+              className="block flex-grow px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+            />
+            <button
+              type="button"
+              onClick={() => addExaminationInput(currentExaminationInput)}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors duration-200"
+            >
+              <FaPlus /> Add Finding
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Additional Notes, Follow-up, and Advice */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-4">
         <div>
           <label
@@ -682,6 +1110,24 @@ const MedicalRecordForm = ({
             id="notes"
             name="notes"
             value={formData.notes}
+            onChange={handleChange}
+            rows={3}
+            className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+          />
+        </div>
+
+        {/* Advice */}
+        <div>
+          <label
+            htmlFor="advice"
+            className="block text-lg font-medium text-gray-700 mb-1"
+          >
+            Advice
+          </label>
+          <textarea
+            id="advice"
+            name="advice"
+            value={formData.advice}
             onChange={handleChange}
             rows={3}
             className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"

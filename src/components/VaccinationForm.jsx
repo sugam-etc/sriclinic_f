@@ -1,411 +1,316 @@
 import { useState, useEffect } from "react";
-import {
-  createVaccination,
-  updateVaccination,
-} from "../api/vaccinationService"; // Correct path
+// import { vaccinationService } from "../api/vaccinationService";
+import { patientService } from "../api/patientService";
 
-export default function VaccinationForm({
-  existing,
-  onClose,
-  isCompletingAppointment = false,
-}) {
+export default function VaccinationForm({ patientId, onSave, onCancel }) {
   const [form, setForm] = useState({
-    patientName: "",
-    patientSpecies: "",
-    patientBreed: "",
-    patientAge: "",
-    patientId: "",
-    ownerName: "",
-    ownerPhone: "",
     vaccineName: "",
-    dateAdministered: "",
+    dateAdministered: new Date().toISOString().split("T")[0],
     nextDueDate: "",
     batchNumber: "",
     manufacturer: "",
     notes: "",
-    status: "upcoming", // Default status
+    isBooster: false,
+    routeOfAdministration: "",
+    reactionObserved: "",
+    administeringVeterinarian: "",
   });
 
+  const [patientData, setPatientData] = useState(null);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
-    if (existing) {
-      // When editing an existing record, populate the form
-      setForm({
-        ...existing,
-        // Format dates for input type="date"
-        dateAdministered: existing.dateAdministered
-          ? existing.dateAdministered.slice(0, 10)
-          : "",
-        nextDueDate: existing.nextDueDate
-          ? existing.nextDueDate.slice(0, 10)
-          : "",
-      });
-    } else {
-      // When creating a new record, reset the form and default status to 'upcoming'
-      setForm({
-        patientName: "",
-        patientSpecies: "",
-        patientBreed: "",
-        patientAge: "",
-        patientId: "",
-        ownerName: "",
-        ownerPhone: "",
-        vaccineName: "",
-        dateAdministered: "",
-        nextDueDate: "",
-        batchNumber: "",
-        manufacturer: "",
-        notes: "",
-        status: "upcoming",
-      });
+    if (patientId) {
+      const loadPatientData = async () => {
+        try {
+          const patient = await patientService.getPatientById(patientId);
+          setPatientData(patient);
+        } catch (err) {
+          setError("Failed to load patient data", err);
+        }
+      };
+      loadPatientData();
     }
-  }, [existing]);
+  }, [patientId]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
   };
 
-  const handleSubmit = async () => {
+  const handleCheckboxChange = (e) => {
+    const { name, checked } = e.target;
+    setForm({ ...form, [name]: checked });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
     try {
-      const dataToSave = { ...form };
-
-      // Determine status based on vaccineName and dateAdministered
-      // Set status to 'completed' only if both vaccineName and dateAdministered are provided
-      if (dataToSave.vaccineName && dataToSave.dateAdministered) {
-        dataToSave.status = "completed";
-      } else {
-        dataToSave.status = "upcoming"; // Otherwise, it's an upcoming appointment
+      // Validate required fields
+      if (!form.vaccineName) {
+        throw new Error("Vaccine name is required");
+      }
+      if (!form.dateAdministered) {
+        throw new Error("Date administered is required");
+      }
+      if (!form.nextDueDate) {
+        throw new Error("Next due date is required");
       }
 
-      if (form._id) {
-        await updateVaccination(form._id, dataToSave);
-      } else {
-        await createVaccination(dataToSave);
+      // Calculate next due date if not provided
+      let nextDueDate = form.nextDueDate;
+      if (!nextDueDate && form.dateAdministered) {
+        const adminDate = new Date(form.dateAdministered);
+        adminDate.setFullYear(adminDate.getFullYear() + 1); // Default to 1 year later
+        nextDueDate = adminDate.toISOString().split("T")[0];
       }
-      onClose();
-    } catch (err) {
-      console.error("Error saving vaccination:", err);
-      // Implement a user-friendly error message here instead of just console.error
-      // For example, using a state variable to show an error message on the form.
-    }
-  };
 
-  // Determine if a field is required based on the form's current state and context
-  const isRequired = (fieldName) => {
-    // Patient and Owner info are required if the form is being completed or if it's a new entry and these fields are being filled
-    const isPatientOwnerInfoRequired =
-      form.status === "completed" || isCompletingAppointment;
+      // Prepare data for API
+      const payload = {
+        patient: patientId,
+        vaccineName: form.vaccineName,
+        dateAdministered: form.dateAdministered,
+        nextDueDate: nextDueDate,
+        batchNumber: form.batchNumber || undefined,
+        manufacturer: form.manufacturer || undefined,
+        administeringVeterinarian: form.administeringVeterinarian || undefined,
+        notes: form.notes || undefined,
+        isBooster: form.isBooster,
+        routeOfAdministration: form.routeOfAdministration || undefined,
+        reactionObserved: form.reactionObserved || undefined,
+      };
 
-    switch (fieldName) {
-      case "patientName":
-      case "patientSpecies":
-      case "patientId":
-      case "ownerName":
-      case "ownerPhone":
-        // These fields are required if completing an appointment OR if the form is already in 'completed' status
-        // AND the field is currently empty.
-        return isPatientOwnerInfoRequired && !form[fieldName];
-      case "vaccineName":
-      case "dateAdministered":
-        // These fields are required only when completing an appointment or if the form is already in 'completed' status
-        return form.status === "completed" || isCompletingAppointment;
-      default:
-        return false;
+      // Call onSave with the prepared data
+      onSave(payload);
+    } catch (error) {
+      console.error("Validation error:", error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="bg-white max-w-4xl mx-auto p-6 rounded-2xl shadow-md border border-gray-200">
-      <h2 className="text-2xl font-semibold text-gray-800 mb-6">
-        {form._id
-          ? isCompletingAppointment
-            ? "Complete Vaccination Record"
-            : "Edit Vaccination Record"
-          : "New Vaccination Entry"}
+    <div className="bg-white max-w-4xl mx-auto p-8 rounded-3xl shadow-xl border border-gray-100 font-inter">
+      <h2 className="text-3xl font-semibold text-gray-900 mb-8 text-center">
+        New Vaccination Record
       </h2>
 
-      {/* Patient Info */}
-      <section className="mb-8">
-        <h3 className="text-xl font-medium text-gray-700 mb-4">Pet Info</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="patientName"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Pet Name{" "}
-              {isRequired("patientName") && (
-                <span className="text-red-500">*</span>
-              )}
-            </label>
-            <input
-              type="text"
-              name="patientName"
-              id="patientName"
-              placeholder="Pet Name"
-              value={form.patientName}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-              required={isRequired("patientName")}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="patientSpecies"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Species{" "}
-              {isRequired("patientSpecies") && (
-                <span className="text-red-500">*</span>
-              )}
-            </label>
-            <input
-              type="text"
-              name="patientSpecies"
-              id="patientSpecies"
-              placeholder="Species"
-              value={form.patientSpecies}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-              required={isRequired("patientSpecies")}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="patientBreed"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Breed
-            </label>
-            <input
-              type="text"
-              name="patientBreed"
-              id="patientBreed"
-              placeholder="Breed"
-              value={form.patientBreed}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="patientAge"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Age
-            </label>
-            <input
-              type="text"
-              name="patientAge"
-              id="patientAge"
-              placeholder="Age"
-              value={form.patientAge}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="patientId"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Pet ID{" "}
-              {isRequired("patientId") && (
-                <span className="text-red-500">*</span>
-              )}
-            </label>
-            <input
-              type="text"
-              name="patientId"
-              id="patientId"
-              placeholder="Pet ID"
-              value={form.patientId}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-              required={isRequired("patientId")}
-            />
-          </div>
+      {error && (
+        <div className="mb-6 p-4 bg-orange-100 text-orange-700 rounded-xl border border-orange-200">
+          {error}
         </div>
-      </section>
+      )}
 
-      {/* Owner Info */}
-      <section className="mb-8">
-        <h3 className="text-xl font-medium text-gray-700 mb-4">Owner Info</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="ownerName"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Owner Name{" "}
-              {isRequired("ownerName") && (
-                <span className="text-red-500">*</span>
-              )}
-            </label>
-            <input
-              type="text"
-              name="ownerName"
-              id="ownerName"
-              placeholder="Owner Name"
-              value={form.ownerName}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-              required={isRequired("ownerName")}
-            />
+      {patientData && (
+        <section className="mb-10 p-6 bg-gray-50 rounded-2xl border border-gray-100">
+          <h3 className="text-xl font-medium text-gray-800 mb-5">
+            Patient Information
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              <p className="text-sm text-gray-500">Name</p>
+              <p className="font-semibold text-gray-900">{patientData.name}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Species</p>
+              <p className="font-semibold text-gray-900">
+                {patientData.species}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Breed</p>
+              <p className="font-semibold text-gray-900">
+                {patientData.breed || "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Age</p>
+              <p className="font-semibold text-gray-900">
+                {patientData.age || "-"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Registration</p>
+              <p className="font-semibold text-gray-900">
+                {patientData.registrationNumber}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Owner</p>
+              <p className="font-semibold text-gray-900">
+                {patientData.client?.owner || "-"}
+              </p>
+            </div>
           </div>
-          <div>
-            <label
-              htmlFor="ownerPhone"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Owner Phone{" "}
-              {isRequired("ownerPhone") && (
-                <span className="text-red-500">*</span>
-              )}
-            </label>
-            <input
-              type="text"
-              name="ownerPhone"
-              id="ownerPhone"
-              placeholder="Owner Phone"
-              value={form.ownerPhone}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-              required={isRequired("ownerPhone")}
-            />
+        </section>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <section className="mb-10">
+          <h3 className="text-xl font-medium text-gray-800 mb-5">
+            Vaccination Details
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Vaccine Name <span className="text-orange-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="vaccineName"
+                value={form.vaccineName}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Date Administered <span className="text-orange-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="dateAdministered"
+                value={form.dateAdministered}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Next Due Date <span className="text-orange-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="nextDueDate"
+                value={form.nextDueDate}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Batch Number
+              </label>
+              <input
+                type="text"
+                name="batchNumber"
+                value={form.batchNumber}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Manufacturer
+              </label>
+              <input
+                type="text"
+                name="manufacturer"
+                value={form.manufacturer}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Administering Veterinarian
+              </label>
+              <input
+                type="text"
+                name="administeringVeterinarian"
+                value={form.administeringVeterinarian}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Booster Shot?
+              </label>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  name="isBooster"
+                  checked={form.isBooster}
+                  onChange={handleCheckboxChange}
+                  className="h-4 w-4 text-orange-500 focus:ring-orange-500 border-gray-300 rounded"
+                />
+                <label className="ml-2 block text-sm text-gray-700">
+                  {form.isBooster ? "Yes" : "No"}
+                </label>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Route of Administration
+              </label>
+              <select
+                name="routeOfAdministration"
+                value={form.routeOfAdministration}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+              >
+                <option value="">Select Route</option>
+                <option value="Subcutaneous">Subcutaneous</option>
+                <option value="Intramuscular">Intramuscular</option>
+                <option value="Oral">Oral</option>
+                <option value="Intranasal">Intranasal</option>
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reaction Observed
+              </label>
+              <input
+                type="text"
+                name="reactionObserved"
+                value={form.reactionObserved}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes
+              </label>
+              <textarea
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition duration-200 min-h-[100px]"
+              />
+            </div>
           </div>
+        </section>
+
+        <div className="flex flex-col sm:flex-row justify-end gap-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full sm:w-auto bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-8 py-3 rounded-xl transition duration-200"
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className={`w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition duration-200 ${
+              isLoading ? "opacity-75 cursor-not-allowed" : ""
+            }`}
+          >
+            {isLoading ? "Saving..." : "Save Vaccination"}
+          </button>
         </div>
-      </section>
-
-      {/* Vaccination Info - Conditionally rendered/required for completion */}
-      <section className="mb-8">
-        <h3 className="text-xl font-medium text-gray-700 mb-4">
-          Vaccination Info
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="vaccineName"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Vaccine Name{" "}
-              {isRequired("vaccineName") && (
-                <span className="text-red-500">*</span>
-              )}
-            </label>
-            <input
-              type="text"
-              name="vaccineName"
-              id="vaccineName"
-              placeholder="Vaccine Name"
-              value={form.vaccineName}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-              required={isRequired("vaccineName")}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="dateAdministered"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Date Administered{" "}
-              {isRequired("dateAdministered") && (
-                <span className="text-red-500">*</span>
-              )}
-            </label>
-            <input
-              type="date"
-              name="dateAdministered"
-              id="dateAdministered"
-              value={form.dateAdministered}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-              required={isRequired("dateAdministered")}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="nextDueDate"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Next Due Date
-            </label>
-            <input
-              type="date"
-              name="nextDueDate"
-              id="nextDueDate"
-              value={form.nextDueDate}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="batchNumber"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Batch Number
-            </label>
-            <input
-              type="text"
-              name="batchNumber"
-              id="batchNumber"
-              placeholder="Batch Number"
-              value={form.batchNumber}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="manufacturer"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Manufacturer
-            </label>
-            <input
-              type="text"
-              name="manufacturer"
-              id="manufacturer"
-              placeholder="Manufacturer"
-              value={form.manufacturer}
-              onChange={handleChange}
-              className="input w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-          <div className="col-span-1 md:col-span-2">
-            <label
-              htmlFor="notes"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Additional Notes
-            </label>
-            <textarea
-              name="notes"
-              id="notes"
-              placeholder="Additional Notes"
-              value={form.notes}
-              onChange={handleChange}
-              className="input min-h-[80px] w-full p-2 border border-gray-300 rounded-md"
-            />
-          </div>
-        </div>
-      </section>
-
-      <div className="flex justify-end gap-4">
-        <button
-          onClick={handleSubmit}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow"
-        >
-          Save
-        </button>
-        <button
-          onClick={onClose}
-          className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg"
-        >
-          Cancel
-        </button>
-      </div>
+      </form>
     </div>
   );
 }

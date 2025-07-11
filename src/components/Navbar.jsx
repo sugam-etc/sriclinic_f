@@ -29,11 +29,7 @@ const Navbar = ({ toggleSidebar }) => {
       name: "Appointments",
       icon: <FaCalendarAlt className="mr-2" />,
     },
-    {
-      path: "/medical-records",
-      name: "Medical Records",
-      icon: <FaFileMedical className="mr-2" />,
-    },
+
     {
       path: "/inventory",
       name: "Inventory",
@@ -43,7 +39,7 @@ const Navbar = ({ toggleSidebar }) => {
   ];
 
   return (
-    <nav className="bg-white shadow-lg">
+    <nav className="bg-white shadow-lg no-print">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           {/* Logo */}

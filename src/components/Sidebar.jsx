@@ -4,20 +4,20 @@ import {
   FaUserFriends,
   FaPaw,
   FaCalendarAlt,
-  FaFileMedical,
   FaBoxes,
   FaDollarSign,
   FaSignOutAlt,
-  FaCog,
   FaUser,
   FaFileImport,
+  FaUsers,
 } from "react-icons/fa";
-import { FaPeopleGroup } from "react-icons/fa6";
+import { FaPeopleGroup, FaSyringe } from "react-icons/fa6";
 import { AiOutlineMedicineBox } from "react-icons/ai";
 import { CgDanger } from "react-icons/cg";
-import logo from "../assets/clinic.jpg"; // Correct path to your logo
+import logo from "../assets/clinic.jpg";
+import React from "react";
+import { MdBloodtype } from "react-icons/md";
 
-// Sidebar component now accepts loggedInUser and onLogout as props
 const Sidebar = ({ loggedInUser, onLogout }) => {
   const location = useLocation();
 
@@ -26,32 +26,28 @@ const Sidebar = ({ loggedInUser, onLogout }) => {
     {
       path: "/clients",
       name: "Clients",
-      icon: <FaUserFriends className="w-5 h-5" />,
+      icon: <FaUsers className="w-5 h-5" />,
     },
+
     {
       path: "/patients",
       name: "Patients",
       icon: <FaPaw className="w-5 h-5" />,
     },
     {
-      path: "/appointments",
-      name: "Appointments",
-      icon: <FaCalendarAlt className="w-5 h-5" />,
+      path: "/vaccinations",
+      name: "Vaccinations",
+      icon: <FaSyringe className="w-5 h-5" />,
     },
     {
       path: "/staffs",
-      name: "Staffs",
+      name: "Staff",
       icon: <FaPeopleGroup className="w-5 h-5" />,
     },
     {
       path: "/suppliers",
       name: "Suppliers",
       icon: <FaFileImport className="w-5 h-5" />,
-    },
-    {
-      path: "/medical-records",
-      name: "Medical Records",
-      icon: <FaFileMedical className="w-5 h-5" />,
     },
     {
       path: "/inventory",
@@ -69,6 +65,11 @@ const Sidebar = ({ loggedInUser, onLogout }) => {
       icon: <AiOutlineMedicineBox className="w-5 h-5" />,
     },
     {
+      path: "/blood-reports",
+      name: "Blood Reports",
+      icon: <MdBloodtype className="w-5 h-5" />,
+    },
+    {
       path: "/expired",
       name: "Expired Items",
       icon: <CgDanger className="w-5 h-5" />,
@@ -76,72 +77,76 @@ const Sidebar = ({ loggedInUser, onLogout }) => {
   ];
 
   return (
-    <div className="flex flex-col w-64 border-r border-gray-200 bg-white h-screen fixed">
-      {/* Sidebar header */}
-      <div className="flex items-center h-16 px-4 border-b border-gray-200">
-        <div className="flex items-center">
+    <div className="flex flex-col w-64 h-screen fixed bg-white border-r border-gray-200 no-print">
+      {/* Header */}
+      <div className="flex items-center h-20 px-6 border-b border-gray-200">
+        <div className="flex items-center space-x-3">
           <img
             src={logo}
             alt="Sri Vet Clinic Logo"
-            className="h-8 w-8 rounded-full object-cover"
+            className="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm"
           />
-          <span className="ml-2 text-xl font-bold text-gray-800">
+          <span className="text-xl font-bold text-gray-900 whitespace-nowrap">
             Sri Vet Clinic
           </span>
         </div>
       </div>
 
-      {/* Sidebar content */}
-      <div className="flex flex-col flex-grow overflow-y-auto">
-        {/* Navigation */}
-        <nav className="flex-1 px-2 py-4 space-y-1 bg-white">
+      {/* Navigation */}
+      <div className="flex-grow overflow-y-auto px-3 py-6">
+        <nav className="space-y-1">
           {navLinks.map((link) => (
             <Link
               key={link.path}
               to={link.path}
-              className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg ${
+              className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all ${
                 location.pathname === link.path
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-orange-500 text-white shadow-sm"
+                  : "text-gray-700 hover:bg-gray-100"
               }`}
             >
-              <span className="mr-3">{link.icon}</span>
+              <span className="mr-3">
+                {React.cloneElement(link.icon, {
+                  className: `w-5 h-5 ${
+                    location.pathname === link.path
+                      ? "text-white"
+                      : "text-orange-500"
+                  }`,
+                })}
+              </span>
               {link.name}
             </Link>
           ))}
         </nav>
+      </div>
 
-        {/* Bottom section */}
-        <div className="px-4 py-4 border-t border-gray-200 mt-auto">
-          <div className="flex items-center px-4 py-3">
-            <div className="flex-shrink-0">
-              <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                <FaUser className="h-5 w-5 text-indigo-500" />
-              </div>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-700">
-                {/* This line displays the logged-in user's name or username */}
-                {loggedInUser
-                  ? loggedInUser.staff.name || loggedInUser.staff.username
-                  : "Guest"}
-              </p>
-              <p className="text-xs font-medium text-gray-500">
-                {loggedInUser ? loggedInUser.staff.role : "Role"}
-              </p>
+      {/* User section */}
+      <div className="px-4 py-4 border-t border-gray-200">
+        <div className="flex items-center px-3 py-2 rounded-lg">
+          <div className="flex-shrink-0">
+            <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center border-2 border-white">
+              <FaUser className="h-4 w-4 text-orange-500" />
             </div>
           </div>
-
-          <div className="mt-4 space-y-1">
-            <button
-              onClick={onLogout} // Call the onLogout function when clicked
-              className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
-            >
-              <FaSignOutAlt className="w-5 h-5 mr-3" />
-              Sign out
-            </button>
+          <div className="ml-3 overflow-hidden">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {loggedInUser
+                ? loggedInUser.staff.name || loggedInUser.staff.username
+                : "Guest"}
+            </p>
+            <p className="text-xs font-medium text-gray-500 truncate">
+              {loggedInUser ? loggedInUser.staff.role : "Role"}
+            </p>
           </div>
         </div>
+
+        <button
+          onClick={onLogout}
+          className="flex items-center w-full px-4 py-3 mt-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-100 transition-all"
+        >
+          <FaSignOutAlt className="w-5 h-5 mr-3 text-gray-500" />
+          Sign out
+        </button>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ import {
   FaChartLine,
   FaNotesMedical,
   FaTimes,
-} from "react-icons/fa"; // Removed FaPrint
+} from "react-icons/fa";
 import { createSale, updateSale } from "../api/saleService";
 import { updateInventoryItem } from "../api/inventoryService";
 
@@ -19,9 +19,7 @@ const SalesForm = ({
   inventory,
   onCancel,
   selectedSale,
-  setInventory, // This prop is used to update the inventory state in the parent (Sales.jsx)
-  // Removed nextInvoiceNumber prop
-  // Removed handlePrint prop
+  // This prop is used to update the inventory state in the parent (Sales.jsx)
 }) => {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -73,7 +71,7 @@ const SalesForm = ({
       }));
     }
     setSubmissionError(null); // Clear any previous errors on form load/reset
-  }, [selectedSale]); // Removed nextInvoiceNumber from dependency array
+  }, [selectedSale]);
 
   // Filter available items based on current inventory stock
   useEffect(() => {
@@ -242,11 +240,11 @@ const SalesForm = ({
   const { subtotal, tax, totalAmount, totalBill } = calculateTotals(); // Destructure all calculated totals
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-8 font-sans">
       {/* Display submission error if any */}
       {submissionError && (
         <div
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl relative mb-6"
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl relative mb-6 shadow-md"
           role="alert"
         >
           <strong className="font-bold">Error!</strong>
@@ -254,18 +252,18 @@ const SalesForm = ({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Client Information */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaUser className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <FaUser className="text-orange-600 text-2xl" />
             Client Information
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label
                 htmlFor="clientName"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Client Name *
               </label>
@@ -276,14 +274,14 @@ const SalesForm = ({
                 value={formData.clientName}
                 onChange={handleChange}
                 required
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
               />
             </div>
 
             <div>
               <label
                 htmlFor="clientPhone"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Phone Number *
               </label>
@@ -294,23 +292,23 @@ const SalesForm = ({
                 value={formData.clientPhone}
                 onChange={handleChange}
                 required
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
               />
             </div>
           </div>
         </div>
 
         {/* Payment Information */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaMoneyBillWave className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <FaMoneyBillWave className="text-orange-600 text-2xl" />
             Payment Information
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label
                 htmlFor="paymentMethod"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Payment Method *
               </label>
@@ -318,9 +316,9 @@ const SalesForm = ({
                 {paymentMethods.map((method) => (
                   <label
                     key={method.value}
-                    className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer ${
+                    className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
                       formData.paymentMethod === method.value
-                        ? "border-indigo-500 bg-indigo-50"
+                        ? "border-orange-500 bg-orange-50"
                         : "border-gray-300 hover:bg-gray-50"
                     }`}
                   >
@@ -333,20 +331,22 @@ const SalesForm = ({
                       className="hidden"
                       required
                     />
-                    <span className="text-indigo-600">{method.icon}</span>
-                    <span>{method.label}</span>
+                    <span className="text-orange-600 text-lg">
+                      {method.icon}
+                    </span>
+                    <span className="text-sm">{method.label}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label
                   htmlFor="taxRate"
-                  className="block text-lg font-medium text-gray-700 mb-1 flex items-center gap-2"
+                  className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2"
                 >
-                  <FaPercentage className="text-gray-400" />
+                  <FaPercentage className="text-gray-500 text-base" />
                   Tax Rate (%)
                 </label>
                 <input
@@ -358,14 +358,14 @@ const SalesForm = ({
                   step="0.1"
                   value={formData.taxRate}
                   onChange={handleChange}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="discount"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Discount (रू)
                 </label>
@@ -377,14 +377,14 @@ const SalesForm = ({
                   step="0.01"
                   value={formData.discount}
                   onChange={handleChange}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
                 />
               </div>
               {/* Service Charge Input */}
               <div>
                 <label
                   htmlFor="serviceCharge"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Service Charge (रू)
                 </label>
@@ -396,7 +396,7 @@ const SalesForm = ({
                   step="0.01"
                   value={formData.serviceCharge}
                   onChange={handleChange}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
                 />
               </div>
             </div>
@@ -404,16 +404,16 @@ const SalesForm = ({
         </div>
 
         {/* Items Selection */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 md:col-span-2">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaShoppingCart className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 lg:col-span-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <FaShoppingCart className="text-orange-600 text-2xl" />
             Items
           </h2>
 
           {/* Item Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className="md:col-span-2">
-              <label className="block text-lg font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Item *
               </label>
               <select
@@ -424,7 +424,7 @@ const SalesForm = ({
                   );
                   handleItemSelect(item || null);
                 }}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
               >
                 <option value="">Select an item</option>
                 {availableItems.map((item) => (
@@ -437,7 +437,7 @@ const SalesForm = ({
             </div>
 
             <div>
-              <label className="block text-lg font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Quantity *
               </label>
               <div className="flex">
@@ -462,17 +462,17 @@ const SalesForm = ({
                     const value = parseInt(e.target.value) || 1;
                     setQuantity(Math.max(1, Math.min(maxQty, value)));
                   }}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-l-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-l-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
                 />
 
                 <button
                   type="button"
                   onClick={addItem}
                   disabled={!selectedItem || quantity <= 0}
-                  className={`px-4 py-3 rounded-r-lg text-lg font-medium ${
+                  className={`px-4 py-3 rounded-r-lg text-lg font-medium transition-all duration-300 ${
                     !selectedItem || quantity <= 0
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-indigo-600 text-white hover:bg-indigo-700"
+                      : "bg-orange-600 text-white hover:bg-orange-700"
                   }`}
                 >
                   Add
@@ -483,23 +483,23 @@ const SalesForm = ({
 
           {/* Selected Items Table */}
           {formData.items.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Item
                     </th>
-                    <th className="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Price
                     </th>
-                    <th className="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Qty
                     </th>
-                    <th className="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Total
                     </th>
-                    <th className="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Action
                     </th>
                   </tr>
@@ -515,31 +515,34 @@ const SalesForm = ({
                           ?.quantity || 0);
 
                     return (
-                      <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                      <tr
+                        key={index}
+                        className="hover:bg-orange-50 transition-colors duration-200"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                           {item.name}
                           {!isStockSufficient && (
-                            <span className="ml-2 text-xs text-red-500">
+                            <span className="ml-2 text-xs text-red-500 font-medium">
                               (Not enough stock)
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                           रू{item.price.toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                           {item.quantity}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                           रू{(item.price * item.quantity).toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                           <button
                             type="button"
                             onClick={() => removeItem(index)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-100 transition-colors"
                           >
-                            <FaTimes />
+                            <FaTimes className="text-lg" />
                           </button>
                         </td>
                       </tr>
@@ -549,39 +552,39 @@ const SalesForm = ({
               </table>
             </div>
           ) : (
-            <div className="bg-gray-50 p-4 rounded-lg text-center text-gray-500">
+            <div className="bg-gray-50 p-6 rounded-lg text-center text-gray-500 text-lg">
               No items added to this sale yet
             </div>
           )}
         </div>
 
         {/* Summary & Notes */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 md:col-span-2">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaChartLine className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100 lg:col-span-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+            <FaChartLine className="text-orange-600 text-2xl" />
             Summary
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex justify-between">
-                  <span className="text-lg text-gray-600">Subtotal:</span>
-                  <span className="text-lg font-medium">
+                  <span className="text-lg text-gray-700">Subtotal:</span>
+                  <span className="text-lg font-medium text-gray-900">
                     रू{subtotal.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-lg text-gray-600">
+                  <span className="text-lg text-gray-700">
                     Tax ({formData.taxRate}%):
                   </span>
-                  <span className="text-lg font-medium">
+                  <span className="text-lg font-medium text-gray-900">
                     रू{tax.toFixed(2)}
                   </span>
                 </div>
                 {formData.discount > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-lg text-gray-600">Discount:</span>
+                    <span className="text-lg text-gray-700">Discount:</span>
                     <span className="text-lg font-medium text-red-600">
                       -रू{formData.discount.toFixed(2)}
                     </span>
@@ -589,27 +592,27 @@ const SalesForm = ({
                 )}
                 {formData.serviceCharge > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-lg text-gray-600">
+                    <span className="text-lg text-gray-700">
                       Service Charge:
                     </span>
-                    <span className="text-lg font-medium">
+                    <span className="text-lg font-medium text-gray-900">
                       +रू{formData.serviceCharge.toFixed(2)}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between pt-3 border-t border-gray-200">
-                  <span className="text-xl font-bold text-gray-800">
+                <div className="flex justify-between pt-4 border-t border-gray-200">
+                  <span className="text-xl font-bold text-gray-900">
                     Total Amount:
                   </span>
-                  <span className="text-xl font-bold text-gray-800">
+                  <span className="text-xl font-bold text-gray-900">
                     रू{totalAmount.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-3 border-t border-gray-200">
-                  <span className="text-xl font-bold text-gray-800">
+                <div className="flex justify-between pt-4 border-t border-gray-200">
+                  <span className="text-xl font-bold text-gray-900">
                     Total Bill:
                   </span>
-                  <span className="text-xl font-bold text-gray-800">
+                  <span className="text-xl font-bold text-gray-900">
                     रू{totalBill.toFixed(2)}
                   </span>
                 </div>
@@ -619,9 +622,9 @@ const SalesForm = ({
             <div>
               <label
                 htmlFor="notes"
-                className="block text-lg font-medium text-gray-700 mb-1 flex items-center gap-2"
+                className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2"
               >
-                <FaNotesMedical className="text-gray-400" />
+                <FaNotesMedical className="text-gray-500 text-base" />
                 Notes
               </label>
               <textarea
@@ -630,7 +633,7 @@ const SalesForm = ({
                 value={formData.notes}
                 onChange={handleChange}
                 rows={4}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
               />
             </div>
           </div>
@@ -639,21 +642,20 @@ const SalesForm = ({
 
       {/* Form Actions */}
       <div className="flex justify-end gap-4 pt-6">
-        {/* Removed Print Invoice button */}
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50"
+          className="px-6 py-3 border border-gray-300 rounded-xl shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all duration-300"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={formData.items.length === 0 || isSubmitting}
-          className={`px-6 py-3 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white ${
+          className={`px-6 py-3 border border-transparent rounded-xl shadow-md text-lg font-medium text-white transition-all duration-300 ease-in-out transform hover:-translate-y-1 ${
             formData.items.length === 0 || isSubmitting
-              ? "bg-indigo-300 cursor-not-allowed"
-              : "bg-indigo-600 hover:bg-indigo-700"
+              ? "bg-orange-300 cursor-not-allowed"
+              : "bg-orange-600 hover:bg-orange-700"
           }`}
         >
           {isSubmitting

@@ -1,20 +1,29 @@
 import React, { useState, useEffect, useMemo } from "react";
-import AddPatientForm from "../components/AddPatientForm";
-import { getPatients, deletePatient } from "../api/patientService"; // Import deletePatient
+import { patientService } from "../api/patientService";
 import { useNavigate } from "react-router-dom";
-const PatientPage = () => {
+import { FaPlus, FaSearch, FaUser } from "react-icons/fa";
+import PatientMedicalRecordForm from "./PatientMedicalRecordForm";
+
+const PatientsPage = () => {
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [editingPatient, setEditingPatient] = useState(null); // New state for editing
+  const [editingPatient, setEditingPatient] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
+
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const { data } = await getPatients();
+        setLoading(true);
+        const data = await patientService.getAllPatients();
         setPatients(data);
       } catch (error) {
+        setError("Failed to fetch patients. Please try again.");
         console.error("Failed to fetch patients:", error);
+      } finally {
+        setLoading(false);
       }
     };
     fetchPatients();
@@ -24,214 +33,208 @@ const PatientPage = () => {
     return patients.filter(
       (p) =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.petCode.toLowerCase().includes(searchTerm.toLowerCase())
+        (p.petId && p.petId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        p.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.registrationNumber.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [patients, searchTerm]);
 
-  function formatAppointmentDate(isoString) {
-    if (!isoString || isoString === "-") {
-      return "-"; // Handle cases where there's no appointment
-    }
-    const date = new Date(isoString);
-
-    // Options for date and time formatting
-    const dateOptions = {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    };
-    const timeOptions = {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true, // For AM/PM format
-    };
-
-    const formattedDate = date.toLocaleDateString(undefined, dateOptions);
-    const formattedTime = date.toLocaleTimeString(undefined, timeOptions);
-
-    return `${formattedDate} at ${formattedTime}`;
-  }
-
   const handleAddPatientClick = () => {
-    setEditingPatient(null); // Clear any editing patient
-    setShowForm(true); // Show the form for adding
+    setEditingPatient(null);
+    setShowForm(true);
   };
 
   const handleEditPatient = (patient) => {
-    setEditingPatient(patient); // Set the patient to be edited
-    setShowForm(true); // Show the form
+    setEditingPatient(patient);
+    setShowForm(true);
   };
 
   const handleDeletePatient = async (patientId) => {
     if (window.confirm("Are you sure you want to delete this patient?")) {
       try {
-        await deletePatient(patientId);
+        await patientService.deletePatient(patientId);
         setPatients((prev) => prev.filter((p) => p._id !== patientId));
       } catch (error) {
+        setError("Failed to delete patient. Please try again.");
         console.error("Failed to delete patient:", error);
-        alert("Failed to delete patient.");
       }
     }
   };
 
   const handlePatientFormSubmit = (updatedPatient) => {
     if (editingPatient) {
-      // Update existing patient in the list
       setPatients((prev) =>
         prev.map((p) => (p._id === updatedPatient._id ? updatedPatient : p))
       );
     } else {
-      // Add new patient to the list
       setPatients((prev) => [...prev, updatedPatient]);
     }
-    setShowForm(false); // Close the form
-    setEditingPatient(null); // Clear editing patient
+    setShowForm(false);
+    setEditingPatient(null);
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10 font-sans text-gray-800">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-6">
-        <h1 className="text-4xl font-extrabold tracking-tight text-indigo-700">
-          Patients
-        </h1>
+    <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Patient Management
+          </h1>
+          {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        </div>
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-          <input
-            type="text"
-            placeholder="Search by Name or Pet Code"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:w-80 px-5 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition duration-200"
-          />
+          <div className="relative w-full sm:w-64">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FaSearch className="text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search patients..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
           <button
-            onClick={handleAddPatientClick} // Use the new handler
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-md transition duration-200 font-semibold whitespace-nowrap"
+            onClick={handleAddPatientClick}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
-            Add Patient
+            <FaPlus /> Add Patient
           </button>
         </div>
-      </header>
+      </div>
 
       {showForm && (
-        <div className="mb-10">
-          <AddPatientForm
-            onPatientAdded={handlePatientFormSubmit} // Use a single handler for add/update
+        <div className="mb-6 bg-white rounded-lg shadow-sm p-6">
+          <PatientMedicalRecordForm
+            onPatientAdded={handlePatientFormSubmit}
             onCancel={() => {
               setShowForm(false);
-              setEditingPatient(null); // Clear editing patient on cancel
+              setEditingPatient(null);
             }}
-            patientToEdit={editingPatient} // Pass the patient to edit
+            patientToEdit={editingPatient}
           />
         </div>
       )}
 
-      <section className="overflow-x-auto rounded-lg shadow-lg border border-gray-200 bg-white">
-        <table className="min-w-full border-collapse">
-          <thead className="bg-indigo-50">
-            <tr>
-              {[
-                "Name",
-                "Species",
-                "Breed",
-                "Age",
-                "Microchip No.",
-                "Sex",
-                "Owner",
-                "Last Appointment",
-                "Actions", // Add Actions column header
-              ].map((heading) => (
-                <th
-                  key={heading}
-                  className="text-left px-6 py-4 text-indigo-700 font-semibold tracking-wide border-b border-indigo-100"
-                >
-                  {heading}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPatients.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={9} // Adjust colspan to include new column
-                  className="text-center py-12 text-gray-400 italic select-none"
-                >
-                  No patients found.
-                </td>
-              </tr>
-            ) : (
-              filteredPatients.map((p) => (
-                <tr
-                  key={p._id}
-                  className="border-b border-gray-100 hover:bg-indigo-50 transition-colors"
-                >
-                  <td
-                    className="px-6 py-4 font-medium text-gray-900 hover:cursor-pointer hover:underline"
-                    onClick={() => {
-                      navigate(`/patient/${p._id}`);
-                    }}
-                  >
-                    {p.name}
-                  </td>
-                  <td className="px-6 py-4">{p.species}</td>
-                  <td className="px-6 py-4">{p.breed}</td>
-                  <td className="px-6 py-4">{p.age}</td>
-                  <td className="px-6 py-4 font-mono tracking-wide">
-                    {p.petId}
-                  </td>
-                  <td className="px-6 py-4 capitalize">{p.sex}</td>
-                  <td className="px-6 py-4">
-                    <div className="font-semibold">{p.ownerName}</div>
-                    <div className="text-sm text-gray-500">
-                      {p.ownerContact}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {formatAppointmentDate(p.lastAppointment)}
-                  </td>
-                  <td className="px-6 py-4 flex items-center space-x-2">
-                    <button
-                      onClick={() => handleEditPatient(p)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      title="Edit Patient"
-                    >
-                      {/* Edit Icon (replace with your preferred icon library, e.g., Heroicons) */}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+          {filteredPatients.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[
+                      "Name",
+                      "Species",
+                      "Breed",
+                      "Age",
+                      "Pet ID",
+                      "Owner",
+                      "Contact",
+                      "Actions",
+                    ].map((header) => (
+                      <th
+                        key={header}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
-                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-7.65 7.65a1 1 0 01-.322.253l-3 1a1 1 0 01-1.21-1.21l1-3a1 1 0 01.253-.322l7.65-7.65zM10 17a8 8 0 100-16 8 8 0 000 16z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeletePatient(p._id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete Patient"
-                    >
-                      {/* Delete Icon (replace with your preferred icon library, e.g., Heroicons) */}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-5 w-5"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredPatients.map((p) => (
+                    <tr key={p._id} className="hover:bg-gray-50">
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 cursor-pointer hover:underline"
+                        onClick={() => navigate(`/patient/${p._id}`)}
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </section>
+                        {p.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
+                        {p.species}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {p.breed || "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {p.age}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                        {p.petId || "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {p.ownerName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {p.ownerContact}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditPatient(p)}
+                            className="text-indigo-600 hover:text-indigo-800 p-1"
+                            title="Edit"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeletePatient(p._id)}
+                            className="text-red-600 hover:text-red-800 p-1"
+                            title="Delete"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500">
+              <FaUser className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-700">
+                {searchTerm
+                  ? "No matching patients found"
+                  : "No patients available"}
+              </h3>
+              <button
+                onClick={handleAddPatientClick}
+                className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              >
+                Add New Patient
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
-export default PatientPage;
+export default PatientsPage;

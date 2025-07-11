@@ -189,19 +189,19 @@ function ExpiredItemsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 text-center text-gray-600 font-inter">
-        Loading expired and expiring items...
+      <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-orange-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-4 text-center text-red-600 font-inter">
-        Error: {error}
+      <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+        <p className="text-xl text-red-600 font-semibold">{error}</p>
         <button
           onClick={fetchInventory}
-          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-md shadow-md hover:bg-blue-600 transition-colors"
+          className="ml-4 px-4 py-2 bg-orange-600 text-white rounded-lg shadow-md hover:bg-orange-700 transition-colors"
         >
           Retry
         </button>
@@ -210,164 +210,177 @@ function ExpiredItemsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8 font-inter">
-      <h1 className="text-3xl font-bold text-red-700 text-center sm:text-left rounded-md">
-        Expired Items & Expiring Soon
-      </h1>
+    <div className="min-h-screen bg-white font-sans p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-900 text-center sm:text-left mb-8">
+          Expired & Expiring Soon
+        </h1>
 
-      {/* Search and Filter Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <input
-          type="text"
-          placeholder="Search by name or category..."
-          className="flex-grow p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-400 font-inter"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        {/* Search and Filter Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <input
+            type="text"
+            placeholder="Search by name or category..."
+            className="flex-grow p-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg transition-all duration-300"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
 
-        <select
-          value={filterRange}
-          onChange={(e) => setFilterRange(e.target.value)}
-          className="p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-red-400 font-inter"
-          aria-label="Filter expiry range"
-        >
-          <option value="expired">Expired</option>
-          <option value="week">Expiring in 1 Week</option>
-          <option value="month">Expiring in 1 Month</option>
-        </select>
-      </div>
-
-      {/* Summary Stats */}
-      <section className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center bg-red-50 p-6 rounded-xl shadow-md">
-        <div>
-          <h2 className="text-3xl font-extrabold text-red-900">
-            {displayedItems.length}
-          </h2>
-          <p className="text-red-700 font-medium text-lg">Items Displayed</p>
+          <select
+            value={filterRange}
+            onChange={(e) => setFilterRange(e.target.value)}
+            className="p-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg transition-all duration-300"
+            aria-label="Filter expiry range"
+          >
+            <option value="expired">Expired</option>
+            <option value="week">Expiring in 1 Week</option>
+            <option value="month">Expiring in 1 Month</option>
+          </select>
         </div>
-        <div>
-          <h2 className="text-3xl font-extrabold text-red-900">{totalUnits}</h2>
-          <p className="text-red-700 font-medium text-lg">Total Units</p>
-        </div>
-        <div>
-          <h2 className="text-3xl font-extrabold text-red-900">
-            NPR {totalValue.toFixed(2)}
-          </h2>
-          <p className="text-red-700 font-medium text-lg">Total Value</p>
-        </div>
-      </section>
 
-      {/* Table */}
-      {displayedItems.length === 0 ? (
-        <p className="text-gray-600 italic text-center text-lg">
-          No items found for the selected filter and search term.
-        </p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-300 shadow-lg">
-          <table className="min-w-full bg-white">
-            <thead className="bg-red-600 text-white">
-              <tr>
-                <th
-                  className="py-3 px-4 text-left font-semibold cursor-pointer hover:bg-red-700 transition-colors rounded-tl-lg"
-                  onClick={() => requestSort("name")}
-                >
-                  Name {getSortIndicator("name")}
-                </th>
-                <th
-                  className="py-3 px-4 text-left font-semibold cursor-pointer hover:bg-red-700 transition-colors"
-                  onClick={() => requestSort("category")}
-                >
-                  Category/Type {getSortIndicator("category")}
-                </th>
-                <th
-                  className="py-3 px-4 text-left font-semibold cursor-pointer hover:bg-red-700 transition-colors"
-                  onClick={() => requestSort("quantity")}
-                >
-                  Quantity {getSortIndicator("quantity")}
-                </th>
-                <th className="py-3 px-4 text-left font-semibold">Unit</th>
-                <th
-                  className="py-3 px-4 text-left font-semibold cursor-pointer hover:bg-red-700 transition-colors"
-                  onClick={() => requestSort("sellingPrice")}
-                >
-                  Selling Price (NPR ) {getSortIndicator("sellingPrice")}
-                </th>
-                <th
-                  className="py-3 px-4 text-left font-semibold cursor-pointer hover:bg-red-700 transition-colors"
-                  onClick={() => requestSort("expiryDate")}
-                >
-                  Expiry Date {getSortIndicator("expiryDate")}
-                </th>
-                <th className="py-3 px-4 text-left font-semibold rounded-tr-lg">
-                  Actions
-                </th>{" "}
-                {/* New header for actions */}
-              </tr>
-            </thead>
-            <tbody>
-              {displayedItems.map((item) => (
-                <tr
-                  key={item._id}
-                  className="border-t border-gray-200 hover:bg-red-50 transition-colors"
-                >
-                  <td className="py-2 px-4">{item.name}</td>
-                  <td className="py-2 px-4">
-                    {item.category || item.type || "-"}
-                  </td>
-                  <td className="py-2 px-4">{item.quantity}</td>
-                  <td className="py-2 px-4">{item.unitName || "-"}</td>
-                  <td className="py-2 px-4">
-                    NPR {(item.sellingPrice || 0).toFixed(2)}
-                  </td>
-                  <td className="py-2 px-4">
-                    {item.expiryDate
-                      ? format(parseISO(item.expiryDate), "MMM dd, yyyy")
-                      : "-"}
-                  </td>
-                  <td className="py-2 px-4">
-                    <button
-                      onClick={() => handleDeleteClick(item)}
-                      className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors shadow-sm"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 space-y-4">
-            <h3 className="text-xl font-semibold text-gray-800">
-              Confirm Deletion
-            </h3>
-            <p className="text-gray-700">
-              Are you sure you want to delete "
-              <span className="font-medium">{itemToDelete?.name}</span>"? This
-              action cannot be undone.
+        {/* Summary Stats */}
+        <section className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-6 text-center bg-orange-50 p-6 rounded-2xl shadow-xl border border-orange-100">
+          <div>
+            <h2 className="text-3xl font-extrabold text-orange-900">
+              {displayedItems.length}
+            </h2>
+            <p className="text-orange-700 font-medium text-lg">
+              Items Displayed
             </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={cancelDelete}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
+          </div>
+          <div>
+            <h2 className="text-3xl font-extrabold text-orange-900">
+              {totalUnits}
+            </h2>
+            <p className="text-orange-700 font-medium text-lg">Total Units</p>
+          </div>
+          <div>
+            <h2 className="text-3xl font-extrabold text-orange-900">
+              NPR {totalValue.toFixed(2)}
+            </h2>
+            <p className="text-orange-700 font-medium text-lg">Total Value</p>
+          </div>
+        </section>
+
+        {/* Table */}
+        {displayedItems.length === 0 ? (
+          <p className="text-gray-600 italic text-center text-xl py-8">
+            No items found for the selected filter and search term.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-xl">
+            <table className="min-w-full bg-white">
+              <thead className="bg-orange-600 text-white">
+                <tr>
+                  <th
+                    className="py-4 px-4 text-left font-semibold cursor-pointer hover:bg-orange-700 transition-colors rounded-tl-2xl text-sm"
+                    onClick={() => requestSort("name")}
+                  >
+                    Name {getSortIndicator("name")}
+                  </th>
+                  <th
+                    className="py-4 px-4 text-left font-semibold cursor-pointer hover:bg-orange-700 transition-colors text-sm"
+                    onClick={() => requestSort("category")}
+                  >
+                    Category/Type {getSortIndicator("category")}
+                  </th>
+                  <th
+                    className="py-4 px-4 text-left font-semibold cursor-pointer hover:bg-orange-700 transition-colors text-sm"
+                    onClick={() => requestSort("quantity")}
+                  >
+                    Quantity {getSortIndicator("quantity")}
+                  </th>
+                  <th className="py-4 px-4 text-left font-semibold text-sm">
+                    Unit
+                  </th>
+                  <th
+                    className="py-4 px-4 text-left font-semibold cursor-pointer hover:bg-orange-700 transition-colors text-sm"
+                    onClick={() => requestSort("sellingPrice")}
+                  >
+                    Selling Price (NPR) {getSortIndicator("sellingPrice")}
+                  </th>
+                  <th
+                    className="py-4 px-4 text-left font-semibold cursor-pointer hover:bg-orange-700 transition-colors text-sm"
+                    onClick={() => requestSort("expiryDate")}
+                  >
+                    Expiry Date {getSortIndicator("expiryDate")}
+                  </th>
+                  <th className="py-4 px-4 text-left font-semibold rounded-tr-2xl text-sm">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedItems.map((item) => (
+                  <tr
+                    key={item._id}
+                    className="border-t border-gray-200 hover:bg-orange-50 transition-colors duration-200"
+                  >
+                    <td className="py-3 px-4 text-gray-800 text-sm">
+                      {item.name}
+                    </td>
+                    <td className="py-3 px-4 text-gray-800 text-sm">
+                      {item.category || item.type || "-"}
+                    </td>
+                    <td className="py-3 px-4 text-gray-800 text-sm">
+                      {item.quantity}
+                    </td>
+                    <td className="py-3 px-4 text-gray-800 text-sm">
+                      {item.unitName || "-"}
+                    </td>
+                    <td className="py-3 px-4 text-gray-800 text-sm">
+                      NPR {(item.sellingPrice || 0).toFixed(2)}
+                    </td>
+                    <td className="py-3 px-4 text-gray-800 text-sm">
+                      {item.expiryDate
+                        ? format(parseISO(item.expiryDate), "MMM dd, yyyy")
+                        : "-"}
+                    </td>
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={() => handleDeleteClick(item)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm text-sm"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4 space-y-4">
+              <h3 className="text-xl font-semibold text-gray-800">
+                Confirm Deletion
+              </h3>
+              <p className="text-gray-700">
+                Are you sure you want to delete "
+                <span className="font-medium">{itemToDelete?.name}</span>"? This
+                action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

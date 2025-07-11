@@ -21,7 +21,7 @@ import {
   FaPrint,
 } from "react-icons/fa";
 import { format, isSameDay, parseISO } from "date-fns";
-import logo from "../assets/clinic.jpg";
+import logo from "../assets/clinic.jpg"; // Assuming this path is correct
 
 const SalesPage = () => {
   const [showForm, setShowForm] = useState(false);
@@ -94,31 +94,59 @@ const SalesPage = () => {
 
   // Handles deleting a sale and restoring inventory
   const handleDelete = async (id) => {
-    try {
-      // Find the sale to delete to restore its items to inventory
-      const saleToDelete = sales.find((sale) => sale._id === id);
-      if (saleToDelete) {
-        const updatePromises = saleToDelete.items.map((item) => {
-          const inventoryItem = inventory.find((i) => i._id === item._id);
-          if (inventoryItem) {
-            // Restore the quantity to the inventory item
-            return updateInventoryItem(item._id, {
-              quantity: inventoryItem.quantity + item.quantity,
-            });
-          }
-          return Promise.resolve(); // Resolve if item not found in current inventory
-        });
+    // Custom confirmation modal instead of window.confirm
+    const confirmDeletion = await new Promise((resolve) => {
+      const messageBox = document.createElement("div");
+      messageBox.className =
+        "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
+      messageBox.innerHTML = `
+        <div class="bg-white p-6 rounded-xl shadow-xl text-center max-w-sm mx-4">
+          <p class="text-lg font-semibold text-gray-800 mb-4">Are you sure you want to delete this sale?</p>
+          <div class="flex justify-center gap-4">
+            <button id="cancelDelete" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition">Cancel</button>
+            <button id="confirmDelete" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">Delete</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(messageBox);
 
-        await Promise.all(updatePromises); // Wait for all inventory updates to complete
+      document.getElementById("cancelDelete").onclick = () => {
+        messageBox.remove();
+        resolve(false);
+      };
+      document.getElementById("confirmDelete").onclick = () => {
+        messageBox.remove();
+        resolve(true);
+      };
+    });
 
-        // Then delete the sale record
-        await deleteSale(id);
-        // After deletion, re-fetch all data to update sales list and next invoice number
-        fetchAllData();
+    if (confirmDeletion) {
+      try {
+        // Find the sale to delete to restore its items to inventory
+        const saleToDelete = sales.find((sale) => sale._id === id);
+        if (saleToDelete) {
+          const updatePromises = saleToDelete.items.map((item) => {
+            const inventoryItem = inventory.find((i) => i._id === item._id);
+            if (inventoryItem) {
+              // Restore the quantity to the inventory item
+              return updateInventoryItem(item._id, {
+                quantity: inventoryItem.quantity + item.quantity,
+              });
+            }
+            return Promise.resolve(); // Resolve if item not found in current inventory
+          });
+
+          await Promise.all(updatePromises); // Wait for all inventory updates to complete
+
+          // Then delete the sale record
+          await deleteSale(id);
+          // After deletion, re-fetch all data to update sales list and next invoice number
+          fetchAllData();
+        }
+      } catch (err) {
+        console.error("Failed to delete sale or restore inventory:", err);
+        setError(err.message || "Failed to delete sale.");
       }
-    } catch (err) {
-      console.error("Failed to delete sale or restore inventory:", err);
-      setError(err.message || "Failed to delete sale.");
     }
   };
 
@@ -173,44 +201,46 @@ const SalesPage = () => {
 
   if (isLoading) {
     return (
-      <div className="p-4 text-center text-gray-600">Loading sales data...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-orange-500"></div>
+      </div>
     );
   }
 
   // Helper function to render the sales table for a given list of sales
   const renderSalesTable = (salesToRender) => (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th
                 scope="col"
-                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
               >
                 Date
               </th>
               <th
                 scope="col"
-                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
               >
                 Client
               </th>
               <th
                 scope="col"
-                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
               >
                 Items
               </th>
               <th
                 scope="col"
-                className="px-6 py-4 text-left text-lg font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
               >
                 Total
               </th>
               <th
                 scope="col"
-                className="px-6 py-4 text-right text-lg font-medium text-gray-500 uppercase tracking-wider"
+                className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider"
               >
                 Actions
               </th>
@@ -218,41 +248,44 @@ const SalesPage = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {salesToRender.map((sale) => (
-              <tr key={sale._id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+              <tr
+                key={sale._id}
+                className="hover:bg-orange-50 transition-colors duration-200"
+              >
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                   {format(new Date(sale.date), "MMM dd,yyyy")}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-lg text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                   {sale.clientName}
                 </td>
-                <td className="px-6 py-4 text-lg text-gray-900">
+                <td className="px-6 py-4 text-sm text-gray-800">
                   {sale.items.map((item) => item.name).join(", ")}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-lg font-bold text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
                   NPR {sale.totalAmount.toFixed(2)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-lg font-medium">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex justify-end gap-3">
                     <button
                       onClick={() => handleView(sale)}
-                      className="text-indigo-600 hover:text-indigo-900"
+                      className="text-orange-600 hover:text-orange-800 p-2 rounded-full hover:bg-orange-100 transition-colors"
                       title="View Details"
                     >
-                      <FaFileInvoiceDollar className="text-xl" />
+                      <FaFileInvoiceDollar className="text-lg" />
                     </button>
                     <button
                       onClick={() => printRecord(sale)}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-100 transition-colors"
                       title="Print Invoice"
                     >
-                      <FaPrint className="text-xl" />
+                      <FaPrint className="text-lg" />
                     </button>
                     <button
                       onClick={() => handleDelete(sale._id)}
-                      className="text-red-600 hover:text-red-900"
+                      className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-100 transition-colors"
                       title="Delete Sale"
                     >
-                      <FaTrash className="text-xl" />
+                      <FaTrash className="text-lg" />
                     </button>
                   </div>
                 </td>
@@ -265,151 +298,158 @@ const SalesPage = () => {
   );
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      {/* Header Section */}
-      <header className="mb-8">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            {showForm && (
+    <div className="min-h-screen bg-white font-sans p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header Section */}
+        <header className="mb-8">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div className="flex items-center gap-4">
+              {showForm && (
+                <button
+                  onClick={toggleForm}
+                  className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 transition-all duration-300"
+                >
+                  <FaChevronLeft className="text-gray-600 text-xl" />
+                </button>
+              )}
+              <h1 className="text-4xl font-bold text-gray-900">
+                {showForm ? (selectedSale ? "View Sale" : "New Sale") : "Sales"}
+              </h1>
+            </div>
+
+            {!showForm && (
               <button
                 onClick={toggleForm}
-                className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
+                className="flex items-center justify-center gap-3 px-6 py-3 bg-orange-600 text-white rounded-xl shadow-md hover:bg-orange-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 text-lg"
               >
-                <FaChevronLeft className="text-gray-600 text-lg" />
+                <FaPlus className="text-xl" />
+                <span>New Sale</span>
               </button>
             )}
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
-              {showForm ? (selectedSale ? "View Sale" : "New Sale") : "Sales"}
-            </h1>
           </div>
 
           {!showForm && (
-            <button
-              onClick={toggleForm}
-              className="flex items-center gap-3 px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition text-lg"
-            >
-              <FaPlus className="text-xl" />
-              <span>New Sale</span>
-            </button>
-          )}
-        </div>
-
-        {!showForm && (
-          <div className="mt-6 relative max-w-2xl">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <FaSearch className="text-gray-400 text-xl" />
+            <div className="mt-6 relative max-w-2xl">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <FaSearch className="text-gray-400 text-lg" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by client or item..."
+                className="block w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-orange-500 focus:border-orange-500 text-lg transition-all duration-300"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Search by client or item..."
-              className="block w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl bg-white shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          )}
+        </header>
+
+        {/* Display error message if any */}
+        {error && (
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl relative mb-6 shadow-md"
+            role="alert"
+          >
+            <strong className="font-bold">Error!</strong>
+            <span className="block sm:inline"> {error}</span>
           </div>
         )}
-      </header>
 
-      {/* Display error message if any */}
-      {error && (
-        <div
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-xl relative mb-6"
-          role="alert"
-        >
-          <strong className="font-bold">Error!</strong>
-          <span className="block sm:inline"> {error}</span>
-        </div>
-      )}
-
-      {showForm ? (
-        <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
-          <SalesForm
-            sales={sales}
-            onSubmit={handleSubmitSale}
-            inventory={inventory}
-            onCancel={toggleForm}
-            selectedSale={selectedSale}
-            setInventory={setInventory} // Pass setInventory for local form updates
-          />
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {/* Sales Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-blue-500">
-              <h3 className="text-lg text-gray-500 mb-2">Total Sales</h3>
-              <p className="text-3xl font-bold text-gray-800">
-                NPR {totalSales.toLocaleString()}
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-green-500">
-              <h3 className="text-lg text-gray-500 mb-2">Today's Sales</h3>
-              <p className="text-3xl font-bold text-gray-800">
-                NPR {todaySales.toLocaleString()}
-              </p>
-            </div>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-purple-500">
-              <h3 className="text-lg text-gray-500 mb-2">This Month</h3>
-              <p className="text-3xl font-bold text-gray-800">
-                NPR {monthlySales.toLocaleString()}
-              </p>
-            </div>
+        {showForm ? (
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-100">
+            <SalesForm
+              sales={sales}
+              onSubmit={handleSubmitSale}
+              inventory={inventory}
+              onCancel={toggleForm}
+              selectedSale={selectedSale}
+              setInventory={setInventory} // Pass setInventory for local form updates
+            />
           </div>
-
-          {/* Sales Table */}
-          {filteredSales.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-              <div className="mx-auto max-w-md">
-                <FaShoppingCart className="mx-auto h-16 w-16 text-gray-300 mb-6" />
-                <h3 className="text-2xl font-medium text-gray-700 mb-2">
-                  No sales records found
+        ) : (
+          <div className="space-y-8">
+            {/* Sales Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-2xl shadow-xl border-l-4 border-orange-500">
+                <h3 className="text-lg text-gray-500 mb-2 font-medium">
+                  Total Sales
                 </h3>
-                <p className="text-xl text-gray-500 mb-6">
-                  {searchTerm
-                    ? "No matching sales found. Try a different search."
-                    : "Create your first sale to get started."}
+                <p className="text-3xl font-bold text-gray-900">
+                  NPR {totalSales.toLocaleString()}
                 </p>
-                <button
-                  onClick={toggleForm}
-                  className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition text-xl"
-                >
-                  <FaPlus />
-                  <span>Create Sale</span>
-                </button>
+              </div>
+              <div className="bg-white p-6 rounded-2xl shadow-xl border-l-4 border-green-500">
+                <h3 className="text-lg text-gray-500 mb-2 font-medium">
+                  Today's Sales
+                </h3>
+                <p className="text-3xl font-bold text-gray-900">
+                  NPR {todaySales.toLocaleString()}
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-2xl shadow-xl border-l-4 border-purple-500">
+                <h3 className="text-lg text-gray-500 mb-2 font-medium">
+                  This Month
+                </h3>
+                <p className="text-3xl font-bold text-gray-900">
+                  NPR {monthlySales.toLocaleString()}
+                </p>
               </div>
             </div>
-          ) : (
-            <div className="space-y-8">
-              {/* Today's Sales Section */}
-              {todaySalesList.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                    Today's Sales ({format(today, "EEEE, MMMM dd,yyyy")})
-                  </h2>
-                  {renderSalesTable(todaySalesList)}
-                </div>
-              )}
 
-              {/* Previous Sales Section */}
-              {previousSalesList.length > 0 && (
-                <div className={todaySalesList.length > 0 ? "mt-8" : ""}>
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                    Previous Sales
-                  </h2>
-                  {/* Render all previous sales in a single table */}
-                  {renderSalesTable(previousSalesList)}
+            {/* Sales Table */}
+            {filteredSales.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-xl p-12 text-center border border-gray-100">
+                <div className="mx-auto max-w-md">
+                  <FaShoppingCart className="mx-auto h-20 w-20 text-gray-300 mb-6" />
+                  <h3 className="text-3xl font-semibold text-gray-800 mb-3">
+                    No sales records found
+                  </h3>
+                  <p className="text-xl text-gray-500 mb-8">
+                    {searchTerm
+                      ? "No matching sales found. Try a different search."
+                      : "Create your first sale to get started."}
+                  </p>
+                  <button
+                    onClick={toggleForm}
+                    className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-orange-600 text-white rounded-xl shadow-md hover:bg-orange-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 text-xl"
+                  >
+                    <FaPlus />
+                    <span>Create Sale</span>
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Today's Sales Section */}
+                {todaySalesList.length > 0 && (
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                      Today's Sales ({format(today, "EEEE, MMMM dd,yyyy")})
+                    </h2>
+                    {renderSalesTable(todaySalesList)}
+                  </div>
+                )}
 
-      {/* Invoice Print Template (conditionally rendered for printing) */}
-      {recordToPrint && (
-        <div className="print-invoice-wrapper">
-          <style>
-            {`
+                {/* Previous Sales Section */}
+                {previousSalesList.length > 0 && (
+                  <div className={todaySalesList.length > 0 ? "mt-8" : ""}>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                      Previous Sales
+                    </h2>
+                    {/* Render all previous sales in a single table */}
+                    {renderSalesTable(previousSalesList)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Invoice Print Template (conditionally rendered for printing) */}
+        {recordToPrint && (
+          <div className="print-invoice-wrapper">
+            <style>
+              {`
         @media print {
           body * {
             visibility: hidden;
@@ -439,177 +479,181 @@ const SalesPage = () => {
           }
         }
       `}
-          </style>
+            </style>
 
-          <div ref={salesRef} className="bg-white p-4 max-w-md mx-auto text-sm">
-            {/* Clinic Header */}
-            <div className="flex items-center justify-between mb-4">
-              {/* Logo on the left */}
-              <div className="flex-shrink-0">
-                <img
-                  src={logo}
-                  alt="VetCare Clinic Logo"
-                  className="w-16 h-16 object-contain"
-                />
+            <div
+              ref={salesRef}
+              className="bg-white p-4 max-w-md mx-auto text-sm"
+            >
+              {/* Clinic Header */}
+              <div className="flex items-center justify-between mb-4">
+                {/* Logo on the left */}
+                <div className="flex-shrink-0">
+                  <img
+                    src={logo}
+                    alt="VetCare Clinic Logo"
+                    className="w-16 h-16 object-contain"
+                  />
+                </div>
+
+                {/* Clinic info on the right */}
+                <div className="text-right ml-4">
+                  <h1 className="text-xl font-bold text-gray-800">
+                    Sri Vetenary Clinic
+                  </h1>
+                  <p className="text-gray-600 text-xs">
+                    Nursery Chowk, Dhungedhara
+                  </p>
+                  <p className="text-gray-600 text-xs">
+                    srivetclinic2022@gmail.com
+                  </p>
+                  <p className="text-gray-600 text-xs">
+                    Phone: +977 9849709736, 9808956106
+                  </p>
+                </div>
               </div>
 
-              {/* Clinic info on the right */}
-              <div className="text-right ml-4">
-                <h1 className="text-xl font-bold text-gray-800">
-                  Sri Vetenary Clinic
-                </h1>
-                <p className="text-gray-600 text-xs">
-                  Nursery Chowk, Dhungedhara
-                </p>
-                <p className="text-gray-600 text-xs">
-                  srivetclinic2022@gmail.com
-                </p>
-                <p className="text-gray-600 text-xs">
-                  Phone: +977 9849709736, 9808956106
-                </p>
+              {/* Invoice & Client Info */}
+              <div className="flex justify-between items-start mb-4">
+                <div className="text-left">
+                  <h2 className="text-lg font-bold text-gray-800">INVOICE</h2>
+                  <p className="text-gray-600 text-xs">
+                    Date: {format(new Date(recordToPrint.date), "MMMM dd,yyyy")}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <h3 className="text-sm font-bold text-gray-800">Bill To:</h3>
+                  <p className="text-gray-700 text-xs">
+                    {recordToPrint.clientName}
+                  </p>
+                  <p className="text-gray-700 text-xs">
+                    {recordToPrint.clientPhone || "N/A"}
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {/* Invoice & Client Info */}
-            <div className="flex justify-between items-start mb-4">
-              <div className="text-left">
-                <h2 className="text-lg font-bold text-gray-800">INVOICE</h2>
-                <p className="text-gray-600 text-xs">
-                  Date: {format(new Date(recordToPrint.date), "MMMM dd,yyyy")}
-                </p>
-              </div>
-              <div className="text-right">
-                <h3 className="text-sm font-bold text-gray-800">Bill To:</h3>
-                <p className="text-gray-700 text-xs">
-                  {recordToPrint.clientName}
-                </p>
-                <p className="text-gray-700 text-xs">
-                  {recordToPrint.clientPhone || "N/A"}
-                </p>
-              </div>
-            </div>
-
-            {/* Items Table */}
-            <div className="mb-4">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-100">
-                    <th className="py-1 px-2 text-left font-bold text-gray-700 border-b text-xs">
-                      Item
-                    </th>
-                    <th className="py-1 px-2 text-right font-bold text-gray-700 border-b text-xs">
-                      Price
-                    </th>
-                    <th className="py-1 px-2 text-right font-bold text-gray-700 border-b text-xs">
-                      Qty
-                    </th>
-                    <th className="py-1 px-2 text-right font-bold text-gray-700 border-b text-xs">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recordToPrint.items.map((item, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="py-1 px-2 text-gray-700 text-xs">
-                        {item.name}
-                      </td>
-                      <td className="py-1 px-2 text-right text-gray-700 text-xs">
-                        NPR {item.price.toFixed(2)}
-                      </td>
-                      <td className="py-1 px-2 text-right text-gray-700 text-xs">
-                        {item.quantity}
-                      </td>
-                      <td className="py-1 px-2 text-right text-gray-700 text-xs">
-                        NPR {(item.price * item.quantity).toFixed(2)}
-                      </td>
+              {/* Items Table */}
+              <div className="mb-4">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="py-1 px-2 text-left font-bold text-gray-700 border-b text-xs">
+                        Item
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-gray-700 border-b text-xs">
+                        Price
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-gray-700 border-b text-xs">
+                        Qty
+                      </th>
+                      <th className="py-1 px-2 text-right font-bold text-gray-700 border-b text-xs">
+                        Total
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {recordToPrint.items.map((item, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="py-1 px-2 text-gray-700 text-xs">
+                          {item.name}
+                        </td>
+                        <td className="py-1 px-2 text-right text-gray-700 text-xs">
+                          NPR {item.price.toFixed(2)}
+                        </td>
+                        <td className="py-1 px-2 text-right text-gray-700 text-xs">
+                          {item.quantity}
+                        </td>
+                        <td className="py-1 px-2 text-right text-gray-700 text-xs">
+                          NPR {(item.price * item.quantity).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            {/* Totals Section */}
-            <div className="flex justify-end">
-              <div className="w-full">
-                <div className="flex justify-between py-1">
-                  <span className="font-bold text-gray-700 text-xs">
-                    Items Cost:
-                  </span>
-                  <span className="text-gray-700 text-xs">
-                    NPR {recordToPrint.subtotal.toFixed(2)}
-                  </span>
-                </div>
-
-                {recordToPrint.tax > 0 && (
+              {/* Totals Section */}
+              <div className="flex justify-end">
+                <div className="w-full">
                   <div className="flex justify-between py-1">
                     <span className="font-bold text-gray-700 text-xs">
-                      Tax ({recordToPrint.taxRate}%):
+                      Items Cost:
                     </span>
                     <span className="text-gray-700 text-xs">
-                      NPR {recordToPrint.tax.toFixed(2)}
+                      NPR {recordToPrint.subtotal.toFixed(2)}
                     </span>
                   </div>
-                )}
 
-                {recordToPrint.discount > 0 && (
+                  {recordToPrint.tax > 0 && (
+                    <div className="flex justify-between py-1">
+                      <span className="font-bold text-gray-700 text-xs">
+                        Tax ({recordToPrint.taxRate}%):
+                      </span>
+                      <span className="text-gray-700 text-xs">
+                        NPR {recordToPrint.tax.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {recordToPrint.discount > 0 && (
+                    <div className="flex justify-between py-1">
+                      <span className="font-bold text-gray-700 text-xs">
+                        Discount:
+                      </span>
+                      <span className="text-gray-700 text-xs">
+                        -NPR {recordToPrint.discount.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Blank Service Charge line */}
                   <div className="flex justify-between py-1">
                     <span className="font-bold text-gray-700 text-xs">
-                      Discount:
+                      + Service Charge:
                     </span>
                     <span className="text-gray-700 text-xs">
-                      -NPR {recordToPrint.discount.toFixed(2)}
+                      NPR {recordToPrint.serviceCharge}
                     </span>
                   </div>
-                )}
 
-                {/* Blank Service Charge line */}
-                <div className="flex justify-between py-1">
-                  <span className="font-bold text-gray-700 text-xs">
-                    + Service Charge:
-                  </span>
-                  <span className="text-gray-700 text-xs">
-                    NPR {recordToPrint.serviceCharge}
-                  </span>
-                </div>
-
-                {/* Final Total - left blank for handwritten entry */}
-                <div className="flex justify-between py-1 border-t border-gray-200 mt-2">
-                  <span className="font-bold text-gray-800 text-sm">
-                    Total:
-                  </span>
-                  <span className="font-bold text-gray-800 text-sm">
-                    NPR {recordToPrint.totalBill}
-                  </span>
+                  {/* Final Total - left blank for handwritten entry */}
+                  <div className="flex justify-between py-1 border-t border-gray-200 mt-2">
+                    <span className="font-bold text-gray-800 text-sm">
+                      Total:
+                    </span>
+                    <span className="font-bold text-gray-800 text-sm">
+                      NPR {recordToPrint.totalBill}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Signature & Staff Section */}
-            <div className="mt-6 pt-4 border-t border-gray-200 text-left text-xs text-gray-700">
-              <div className="mb-6">
-                <p className="mb-1 font-semibold">Sold/Served by:</p>
-                <div className="h-6 border-b border-gray-400 w-48"></div>
+              {/* Signature & Staff Section */}
+              <div className="mt-6 pt-4 border-t border-gray-200 text-left text-xs text-gray-700">
+                <div className="mb-6">
+                  <p className="mb-1 font-semibold">Sold/Served by:</p>
+                  <div className="h-6 border-b border-gray-400 w-48"></div>
+                </div>
+                <div className="mb-2">
+                  <p className="font-semibold">Signature:</p>
+                  <div className="h-12 border-b border-gray-400 w-48"></div>
+                </div>
               </div>
-              <div className="mb-2">
-                <p className="font-semibold">Signature:</p>
-                <div className="h-12 border-b border-gray-400 w-48"></div>
-              </div>
-            </div>
 
-            {/* Thank You Footer */}
-            <div className="mt-4 pt-2 border-t border-gray-200 text-center">
-              <p className="text-gray-600 text-xs">
-                Thank you ! <br /> Visit Again
-              </p>
-              <p className="text-gray-500 text-xs mt-1">
-                Invoice generated on{" "}
-                {format(new Date(), "MMMM dd,yyyy hh:mm a")}
-              </p>
+              {/* Thank You Footer */}
+              <div className="mt-4 pt-2 border-t border-gray-200 text-center">
+                <p className="text-gray-600 text-xs">
+                  Thank you ! <br /> Visit Again
+                </p>
+                <p className="text-gray-500 text-xs mt-1">
+                  Invoice generated on{" "}
+                  {format(new Date(), "MMMM dd,yyyy hh:mm a")}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

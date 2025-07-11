@@ -9,8 +9,7 @@ import {
   FaDollarSign,
   FaInfoCircle,
 } from "react-icons/fa";
-// Assuming these are correctly imported from your API service
-import { addInventoryItem, updateInventoryItem } from "../api/inventoryService"; // Assuming this path is correct
+import { addInventoryItem, updateInventoryItem } from "../api/inventoryService";
 
 const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
   const [formData, setFormData] = useState({
@@ -19,8 +18,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
     type: "Medicine",
     manufacturer: "",
     supplier: {
-      // Supplier is now an object for form input
-      _id: "", // To store the actual supplier ID if editing
+      _id: "",
       name: "",
       company: "",
       PAN: "",
@@ -43,12 +41,10 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
 
   useEffect(() => {
     if (editingItem) {
-      // Format expiryDate to YYYY-MM-DD for the input type="date"
       const formattedExpiryDate = editingItem.expiryDate
         ? new Date(editingItem.expiryDate).toISOString().split("T")[0]
         : "";
 
-      // Determine if supplier is populated or just an ID string
       const isSupplierPopulated =
         typeof editingItem.supplier === "object" &&
         editingItem.supplier !== null;
@@ -64,7 +60,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
             : editingItem.supplier || "",
           name: isSupplierPopulated
             ? editingItem.supplier.name
-            : editingItem.supplier || "", // If not populated, assume the string is the name/ID
+            : editingItem.supplier || "",
           company: isSupplierPopulated
             ? editingItem.supplier.company || ""
             : "",
@@ -93,7 +89,6 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    // Handle nested supplier fields
     if (name.startsWith("supplier.")) {
       const supplierFieldName = name.split(".")[1];
       setFormData((prev) => ({
@@ -104,7 +99,6 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
         },
       }));
     } else {
-      // Handle top-level fields
       setFormData((prev) => ({
         ...prev,
         [name]:
@@ -126,36 +120,31 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
     try {
       let resultItem;
       if (editingItem) {
-        // Update existing item
         resultItem = await updateInventoryItem(editingItem._id, formData);
         setInventory((prev) =>
           prev.map((item) => (item._id === resultItem._id ? resultItem : item))
         );
-        console.log("Updating inventory data:", formData);
       } else {
-        // Add new item
         const newItem = {
           ...formData,
           lastUpdated: new Date().toISOString(),
         };
         resultItem = await addInventoryItem(newItem);
-        setInventory((prev) => [...prev, resultItem]); // Add the returned item with populated supplier
-        console.log("Adding inventory data:", newItem);
+        setInventory((prev) => [...prev, resultItem]);
       }
-      onCancel(); // Close form
+      onCancel();
     } catch (error) {
       console.error("Failed to save inventory item:", error);
-      // Using a custom modal or toast for alerts instead of window.alert()
       const messageBox = document.createElement("div");
       messageBox.className =
         "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50";
       messageBox.innerHTML = `
-        <div class="bg-white p-6 rounded-lg shadow-xl text-center">
+        <div class="bg-white p-6 rounded-xl shadow-xl text-center max-w-md">
           <p class="text-lg font-semibold text-red-600 mb-4">Error saving inventory item.</p>
           <p class="text-gray-700 mb-4">${
             error.message || "An unknown error occurred."
           }</p>
-          <button class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700" onclick="this.parentNode.parentNode.remove()">Close</button>
+          <button class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition" onclick="this.parentNode.parentNode.remove()">Close</button>
         </div>
       `;
       document.body.appendChild(messageBox);
@@ -174,19 +163,19 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <form onSubmit={handleSubmit} className="space-y-8 font-sans">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Basic Information */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaBox className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <FaBox className="text-orange-600 text-2xl" />
             Basic Information
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label
                 htmlFor="name"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Item Name *
               </label>
@@ -197,14 +186,14 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
 
             <div>
               <label
                 htmlFor="description"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Description
               </label>
@@ -214,15 +203,15 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 value={formData.description}
                 onChange={handleChange}
                 rows={3}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label
                   htmlFor="type"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Category *
                 </label>
@@ -232,14 +221,14 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   value={formData.type}
                   onChange={handleChange}
                   required
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="unitName"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Unit *
                 </label>
@@ -249,7 +238,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   value={formData.unitName}
                   onChange={handleChange}
                   required
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
             </div>
@@ -257,17 +246,17 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
         </div>
 
         {/* Stock Information */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaShoppingCart className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <FaShoppingCart className="text-orange-600 text-2xl" />
             Stock Information
           </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label
                   htmlFor="quantity"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Quantity *
                 </label>
@@ -279,14 +268,14 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   value={formData.quantity}
                   onChange={handleChange}
                   required
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="threshold"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Low Stock Threshold *
                 </label>
@@ -298,7 +287,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   value={formData.threshold}
                   onChange={handleChange}
                   required
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
             </div>
@@ -306,7 +295,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
             <div>
               <label
                 htmlFor="location"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Storage Location *
               </label>
@@ -317,15 +306,15 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 value={formData.location}
                 onChange={handleChange}
                 required
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
                 <label
                   htmlFor="batchNumber"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Batch Number
                 </label>
@@ -335,14 +324,14 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   name="batchNumber"
                   value={formData.batchNumber}
                   onChange={handleChange}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="expiryDate"
-                  className="block text-lg font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-2"
                 >
                   Expiry Date
                 </label>
@@ -352,7 +341,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   name="expiryDate"
                   value={formData.expiryDate}
                   onChange={handleChange}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
             </div>
@@ -360,22 +349,22 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
         </div>
 
         {/* Pricing Information */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaDollarSign className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <FaDollarSign className="text-orange-600 text-2xl" />
             Pricing Information
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label
                 htmlFor="costPrice"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Cost Price *
               </label>
-              <div className="relative rounded-lg shadow-sm">
+              <div className="relative rounded-lg">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-lg">रू</span>
+                  <span className="text-gray-500">रू</span>
                 </div>
                 <input
                   type="number"
@@ -385,7 +374,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   value={formData.costPrice}
                   onChange={handleChange}
                   required
-                  className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
             </div>
@@ -393,13 +382,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
             <div>
               <label
                 htmlFor="sellingPrice"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Selling Price *
               </label>
-              <div className="relative rounded-lg shadow-sm">
+              <div className="relative rounded-lg">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-lg">रू</span>
+                  <span className="text-gray-500">रू</span>
                 </div>
                 <input
                   type="number"
@@ -409,7 +398,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   value={formData.sellingPrice}
                   onChange={handleChange}
                   required
-                  className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
             </div>
@@ -417,13 +406,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
             <div>
               <label
                 htmlFor="price"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Maximum Retail Price (MRP)
               </label>
-              <div className="relative rounded-lg shadow-sm">
+              <div className="relative rounded-lg">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-lg">रू</span>
+                  <span className="text-gray-500">रू</span>
                 </div>
                 <input
                   type="number"
@@ -432,7 +421,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   min="0"
                   value={formData.price}
                   onChange={handleChange}
-                  className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
               </div>
             </div>
@@ -440,11 +429,11 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
             <div>
               <label
                 htmlFor="taxRate"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Tax Rate (%)
               </label>
-              <div className="relative rounded-lg shadow-sm">
+              <div className="relative rounded-lg">
                 <input
                   type="number"
                   id="taxRate"
@@ -453,29 +442,29 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                   max="100"
                   value={formData.taxRate}
                   onChange={handleChange}
-                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                  className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 text-lg">%</span>
+                  <span className="text-gray-500">%</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center gap-2 text-lg font-medium text-blue-800 mb-2">
-                <FaChartLine />
+            <div className="p-4 bg-orange-50 rounded-lg border border-orange-100">
+              <div className="flex items-center gap-2 text-sm font-medium text-orange-800 mb-2">
+                <FaChartLine className="text-lg" />
                 <span>Profit Analysis</span>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-gray-600">Profit per Unit</p>
-                  <p className="text-xl font-bold">
+                  <p className="text-xs text-gray-600">Profit per Unit</p>
+                  <p className="text-sm font-bold text-gray-900">
                     रू{calculateProfit().toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-600">Profit Margin</p>
-                  <p className="text-xl font-bold">
+                  <p className="text-xs text-gray-600">Profit Margin</p>
+                  <p className="text-sm font-bold text-gray-900">
                     {calculateProfitPercentage().toFixed(1)}%
                   </p>
                 </div>
@@ -485,16 +474,16 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
         </div>
 
         {/* Supplier Information */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <FaUserTie className="text-indigo-600" />
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-6 flex items-center gap-3">
+            <FaUserTie className="text-orange-600 text-2xl" />
             Supplier Information
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <label
                 htmlFor="manufacturer"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Manufacturer
               </label>
@@ -504,14 +493,14 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 name="manufacturer"
                 value={formData.manufacturer}
                 onChange={handleChange}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
 
             <div>
               <label
                 htmlFor="supplierName"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Supplier Name
               </label>
@@ -521,13 +510,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 name="supplier.name"
                 value={formData.supplier.name}
                 onChange={handleChange}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
             <div>
               <label
                 htmlFor="supplierCompany"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Supplier Company
               </label>
@@ -537,13 +526,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 name="supplier.company"
                 value={formData.supplier.company}
                 onChange={handleChange}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
             <div>
               <label
                 htmlFor="supplierPAN"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Supplier PAN
               </label>
@@ -553,13 +542,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 name="supplier.PAN"
                 value={formData.supplier.PAN}
                 onChange={handleChange}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
             <div>
               <label
                 htmlFor="supplierPhone"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Supplier Contact
               </label>
@@ -569,13 +558,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 name="supplier.phone"
                 value={formData.supplier.phone}
                 onChange={handleChange}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
             <div>
               <label
                 htmlFor="supplierEmail"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Supplier Email
               </label>
@@ -585,13 +574,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 name="supplier.email"
                 value={formData.supplier.email}
                 onChange={handleChange}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
             <div>
               <label
                 htmlFor="supplierAddress"
-                className="block text-lg font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
                 Supplier Address
               </label>
@@ -601,7 +590,7 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
                 name="supplier.address"
                 value={formData.supplier.address}
                 onChange={handleChange}
-                className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg"
+                className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 shadow-sm"
               />
             </div>
           </div>
@@ -613,13 +602,13 @@ const InventoryForm = ({ onCancel, editingItem, setInventory }) => {
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-3 border border-gray-300 rounded-lg shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50"
+          className="px-6 py-3 border border-gray-300 rounded-xl shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 transition-all duration-300"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="px-6 py-3 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          className="px-6 py-3 border border-transparent rounded-xl shadow-md text-lg font-medium text-white bg-orange-600 hover:bg-orange-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
         >
           Save Item
         </button>
